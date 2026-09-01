@@ -16,12 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/*
-Reason for extending OncePerRequestFilter
-👉 To guarantee that your JWT filter runs exactly ONCE per HTTP request
-If we extend normal Filter then the code may get executed multiple times
-It is an industry standard to use OncePerRequestFilter
- */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
@@ -49,8 +43,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
             System.out.println("User Name extracted from token : " + userName);
 
-
-//            if username is not already authenticated return null - SecurityContextHolder.getContext().getAuthentication()
             if(userName != null && SecurityContextHolder.getContext().getAuthentication() == null){
 
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(userName);
