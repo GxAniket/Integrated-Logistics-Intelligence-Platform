@@ -19,6 +19,7 @@ import { useState } from "react";
 
 import "./Register.css";
 import { apiRequest } from "../api";
+import { toast } from "react-toastify";
 
 function Register() {
   const navigate = useNavigate();
@@ -415,32 +416,32 @@ function Register() {
     // -------------------------------------------------------
 
     if (!firstName || !lastName) {
-      alert("Please enter your first name and last name.");
+      toast.error("Please enter your first name and last name.");
       return;
     }
 
     if (!email) {
-      alert("Please enter your email.");
+      toast.error("Please enter your email.");
       return;
     }
 
     if (!mobile) {
-      alert("Please enter your mobile number.");
+      toast.error("Please enter your mobile number.");
       return;
     }
 
     if (password.length < 6) {
-      alert("Password must contain at least 6 characters.");
+      toast.error("Password must contain at least 6 characters.");
       return;
     }
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match.");
+      toast.error("Passwords do not match.");
       return;
     }
 
     if (!role) {
-      alert("Please select your role.");
+      toast.error("Please select your role.");
       return;
     }
 
@@ -455,7 +456,7 @@ function Register() {
       !formData.country.trim() ||
       !formData.postalCode.trim()
     ) {
-      alert("Please complete all address fields.");
+      toast.error("Please complete all address fields.");
       return;
     }
 
@@ -473,7 +474,7 @@ function Register() {
     const backendRole = roleMap[role];
 
     if (!backendRole) {
-      alert("Please select a valid registration role.");
+      toast.error("Please select a valid registration role.");
       return;
     }
 
@@ -488,7 +489,7 @@ function Register() {
         !formData.gstTaxId.trim() ||
         !formData.contactPersonName.trim()
       ) {
-        alert("Please complete all Business Client fields.");
+        toast.error("Please complete all Business Client fields.");
         return;
       }
     }
@@ -500,7 +501,7 @@ function Register() {
         !formData.transportationMode ||
         !formData.operatingArea.trim()
       ) {
-        alert("Please complete all Logistics Operator fields.");
+        toast.error("Please complete all Logistics Operator fields.");
         return;
       }
     }
@@ -511,7 +512,7 @@ function Register() {
         !formData.organizationName.trim() ||
         !formData.department.trim()
       ) {
-        alert("Please complete all Support Agent fields.");
+        toast.error("Please complete all Support Agent fields.");
         return;
       }
     }
@@ -571,7 +572,7 @@ function Register() {
       localStorage.removeItem("shiptrackToken");
       localStorage.removeItem("shiptrackUser");
 
-      alert(
+      toast.success(
         "Registration successful! Please login to continue."
       );
 
@@ -579,9 +580,9 @@ function Register() {
     } catch (error) {
       console.error("Registration error:", error);
 
-      alert(
-        error.message ||
-          "Unable to connect to backend."
+      toast.error(
+        
+          "Invalid registration details!"
       );
     } finally {
       setIsSubmitting(false);
