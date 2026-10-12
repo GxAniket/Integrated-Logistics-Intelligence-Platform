@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 import "./OperatorProofOfDelivery.css";
 
 function formatDateTime(value) {
@@ -30,6 +31,9 @@ function OperatorProofOfDelivery() {
   const [shipments, setShipments] = useState([]);
   const [podRecords, setPodRecords] = useState({});
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const [selectedShipmentStatus, setSelectedShipmentStatus] = useState(null);
+  const [shipmentStatusLoading, setShipmentStatusLoading] = useState(false);
+  const [shipmentStatusError, setShipmentStatusError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [podLoading, setPodLoading] = useState(false);
@@ -41,8 +45,24 @@ function OperatorProofOfDelivery() {
   const [deliveryStatus, setDeliveryStatus] = useState("DELIVERED");
 
   const canvasRef = useRef(null);
+  const shipmentRequestRef = useRef(0);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+
+  async function fetchShipmentDetails(shipmentId) {
+    const details = await apiRequest(`/api/shipments/${shipmentId}`);
+
+    if (
+      !details ||
+      typeof details !== "object" ||
+      typeof details.status !== "string" ||
+      !details.status.trim()
+    ) {
+      throw new Error("Shipment status was not returned by the backend.");
+    }
+
+    return details;
+  }
 
   const loadPodRecords = useCallback(async (list) => {
     setPodLoading(true);
@@ -99,6 +119,40 @@ function OperatorProofOfDelivery() {
 
   function openShipment(shipment) {
     setSelectedShipment(shipment);
+    const requestId = ++shipmentRequestRef.current;
+    setSelectedShipmentStatus(null);
+    setShipmentStatusLoading(true);
+    setShipmentStatusError("");
+
+    fetchShipmentDetails(shipment.id)
+      .then((details) => {
+        setShipments((previous) =>
+          previous.map((item) =>
+            item.id === shipment.id ? { ...item, ...details } : item
+          )
+        );
+
+        if (requestId === shipmentRequestRef.current) {
+          setSelectedShipment((previous) =>
+            previous?.id === shipment.id
+              ? { ...previous, ...details }
+              : previous
+          );
+          setSelectedShipmentStatus(details.status);
+        }
+      })
+      .catch((err) => {
+        if (requestId === shipmentRequestRef.current) {
+          setShipmentStatusError(
+            err.message || "Unable to load the latest shipment status."
+          );
+        }
+      })
+      .finally(() => {
+        if (requestId === shipmentRequestRef.current) {
+          setShipmentStatusLoading(false);
+        }
+      });
 
     const existingPod = podRecords[shipment.id];
 
@@ -128,7 +182,11 @@ function OperatorProofOfDelivery() {
   }
 
   function closeShipment() {
+    shipmentRequestRef.current += 1;
     setSelectedShipment(null);
+    setSelectedShipmentStatus(null);
+    setShipmentStatusLoading(false);
+    setShipmentStatusError("");
     setError("");
     setHasSignature(false);
   }
@@ -205,12 +263,23 @@ function OperatorProofOfDelivery() {
   async function savePod() {
     if (!selectedShipment) return;
 
+    const shipmentId = selectedShipment.id;
+    const requestId = shipmentRequestRef.current;
+
+    if (shipmentStatusLoading || !selectedShipmentStatus) {
+      setError(
+        shipmentStatusError ||
+          "The latest shipment status must load before confirming delivery."
+      );
+      return;
+    }
+
     if (podRecords[selectedShipment.id]) {
       setError("A POD already exists for this shipment.");
       return;
     }
 
-    if (selectedShipment.status === "CANCELLED") {
+    if (selectedShipmentStatus === "CANCELLED") {
       setError("A cancelled shipment cannot be confirmed as delivered.");
       return;
     }
@@ -239,7 +308,7 @@ function OperatorProofOfDelivery() {
       };
 
       const createdPod = await apiRequest(
-        `/api/shipments/${selectedShipment.id}/pod`,
+        `/api/shipments/${shipmentId}/pod`,
         {
           method: "POST",
           body: JSON.stringify(payload),
@@ -248,17 +317,53 @@ function OperatorProofOfDelivery() {
 
       setPodRecords((previous) => ({
         ...previous,
-        [selectedShipment.id]: createdPod,
+        [shipmentId]: createdPod,
       }));
 
-      setShipments((previous) =>
-        previous.map((shipment) =>
-          shipment.id === selectedShipment.id
-            ? { ...shipment, status: createdPod.deliveryStatus, updatedAt: createdPod.updatedAt }
-            : shipment
-        )
-      );
-      closeShipment();
+      if (requestId === shipmentRequestRef.current) {
+        setSelectedShipmentStatus(null);
+        setShipmentStatusLoading(true);
+        setShipmentStatusError("");
+      }
+
+      try {
+        const details = await fetchShipmentDetails(shipmentId);
+
+        setShipments((previous) =>
+          previous.map((shipment) =>
+            shipment.id === shipmentId
+              ? { ...shipment, ...details }
+              : shipment
+          )
+        );
+
+        if (
+          requestId === shipmentRequestRef.current &&
+          selectedShipment?.id === shipmentId
+        ) {
+          setSelectedShipment((previous) =>
+            previous?.id === shipmentId
+              ? { ...previous, ...details }
+              : previous
+          );
+          setSelectedShipmentStatus(details.status);
+        }
+      } catch (refreshError) {
+        if (
+          requestId === shipmentRequestRef.current &&
+          selectedShipment?.id === shipmentId
+        ) {
+          setShipmentStatusError(
+            `POD saved, but shipment status could not be refreshed: ${
+              refreshError.message || "Unknown error"
+            }`
+          );
+        }
+      } finally {
+        if (requestId === shipmentRequestRef.current) {
+          setShipmentStatusLoading(false);
+        }
+      }
     } catch (err) {
       setError(err.message || "Failed to save proof of delivery.");
     } finally {
@@ -284,73 +389,7 @@ function OperatorProofOfDelivery() {
 
   return (
     <div className="pod-page">
-      <aside className="pod-sidebar">
-        <div className="pod-brand">
-          <div className="pod-brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Operator Console</span>
-          </div>
-        </div>
-
-        <nav className="pod-nav">
-          <Link to="/dashboard/operator" className="pod-nav-link">
-            Dashboard
-          </Link>
-
-          <Link
-            to="/operator/shipment-tracking"
-            className="pod-nav-link"
-          >
-            Shipment Tracking
-          </Link>
-
-          <Link
-            to="/operator/live-delivery"
-            className="pod-nav-link"
-          >
-            Live Deliveries
-          </Link>
-
-          <Link
-            to="/operator/driver-tracking"
-            className="pod-nav-link"
-          >
-            Driver Tracking
-          </Link>
-
-          <Link to="/operator/routes" className="pod-nav-link">
-            Route Management
-          </Link>
-
-          <Link to="/operator/eta-delay" className="pod-nav-link">
-            ETA & Delays
-          </Link>
-
-          <Link
-            to="/operator/pod"
-            className="pod-nav-link active"
-          >
-            Proof of Delivery
-          </Link>
-        </nav>
-
-        <div className="pod-sidebar-bottom">
-          <div className="pod-user">
-            <div className="pod-avatar">OP</div>
-
-            <div>
-              <strong>Logistics Operator</strong>
-              <span>Operations Team</span>
-            </div>
-          </div>
-
-          <Link to="/login" className="pod-logout">
-            Logout
-          </Link>
-        </div>
-      </aside>
+      <LogisticsOperatorSidebar />
 
       <main className="pod-main">
         <header className="pod-header">
@@ -604,8 +643,15 @@ function OperatorProofOfDelivery() {
               <div>
                 <span>Shipment Status</span>
                 <strong>
-                  {selectedShipment.status || "—"}
+                  {shipmentStatusLoading
+                    ? "Loading..."
+                    : selectedShipmentStatus || "Status unavailable"}
                 </strong>
+                {shipmentStatusError && (
+                  <small className="pod-status-error">
+                    {shipmentStatusError}
+                  </small>
+                )}
               </div>
 
               <div>
@@ -807,7 +853,12 @@ function OperatorProofOfDelivery() {
                     type="button"
                     className="pod-save-button"
                     onClick={savePod}
-                    disabled={saving || podLoading}
+                    disabled={
+                      saving ||
+                      podLoading ||
+                      shipmentStatusLoading ||
+                      !selectedShipmentStatus
+                    }
                   >
                     {saving ? "Confirming..." : "Confirm Delivery & Save POD"}
                   </button>

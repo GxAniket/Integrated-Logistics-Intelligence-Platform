@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./CreateShipment.css";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 
 function CreateShipment() {
   const navigate = useNavigate();
@@ -257,127 +258,7 @@ function CreateShipment() {
   return (
     <div className="create-shipment-page">
 
-      {/* SIDEBAR */}
-
-      <aside className="create-sidebar">
-
-        <div className="create-logo">
-
-          <div className="create-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-
-        </div>
-
-        <div className="create-menu-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav className="create-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="create-nav-link"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="create-nav-link active"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="create-nav-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="create-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="create-nav-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="create-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="create-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="create-nav-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="create-nav-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="create-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="create-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <Link
-          to="/login"
-          className="create-logout"
-        >
-          ⇥ Logout
-        </Link>
-
-      </aside>
+      <BusinessClientSidebar />
 
 
       {/* MAIN */}

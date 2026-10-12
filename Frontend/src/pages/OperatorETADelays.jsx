@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 import "./OperatorETADelays.css";
 
 const TERMINAL_STATUSES = ["DELIVERED", "CANCELLED"];
@@ -165,12 +166,10 @@ function getLastSevenDays() {
 }
 
 function OperatorETADelays() {
-  const [operator, setOperator] = useState(null);
   const [shipments, setShipments] = useState([]);
   const [etaRecords, setEtaRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +179,7 @@ function OperatorETADelays() {
       setError("");
 
       try {
-        const [userData, shipmentData] = await Promise.all([
+        const [, shipmentData] = await Promise.all([
           apiRequest("/api/users/me"),
           apiRequest("/api/shipments"),
         ]);
@@ -191,7 +190,6 @@ function OperatorETADelays() {
           ? shipmentData
           : [];
 
-        setOperator(userData || null);
         setShipments(shipmentList);
 
         /*
@@ -301,7 +299,7 @@ function OperatorETADelays() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, []);
 
   /*
    * Only shipments that are currently active.
@@ -548,108 +546,9 @@ function OperatorETADelays() {
       )
     : null;
 
-  const initials =
-    operator?.name?.charAt(0) ||
-    operator?.fullName?.charAt(0) ||
-    operator?.firstName?.charAt(0) ||
-    "O";
-
   return (
     <div className="eta-page">
-      {/* ================= SIDEBAR ================= */}
-      <aside className="eta-sidebar">
-        <div className="eta-brand">
-          <div className="eta-brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Operator Console</span>
-          </div>
-        </div>
-
-        <nav className="eta-nav">
-          <Link
-            to="/dashboard/operator"
-            className="eta-nav-link"
-          >
-            <span>⌂</span>
-            Dashboard
-          </Link>
-
-          <Link
-            to="/operator/shipment-tracking"
-            className="eta-nav-link"
-          >
-            <span>▣</span>
-            Shipment Tracking
-          </Link>
-
-          <Link
-            to="/operator/live-delivery"
-            className="eta-nav-link"
-          >
-            <span>◎</span>
-            Live Deliveries
-          </Link>
-
-          <Link
-            to="/operator/driver-tracking"
-            className="eta-nav-link"
-          >
-            <span>♙</span>
-            Driver Tracking
-          </Link>
-
-          <Link
-            to="/operator/routes"
-            className="eta-nav-link"
-          >
-            <span>⌁</span>
-            Route Management
-          </Link>
-
-          <Link
-            to="/operator/eta-delay"
-            className="eta-nav-link active"
-          >
-            <span>◷</span>
-            ETA & Delays
-          </Link>
-
-          <Link
-            to="/operator/pod"
-            className="eta-nav-link"
-          >
-            <span>✓</span>
-            Proof of Delivery
-          </Link>
-        </nav>
-
-        <div className="eta-sidebar-bottom">
-          <div className="eta-user">
-            <div className="eta-avatar">
-              {initials.toUpperCase()}
-            </div>
-
-            <div>
-              <strong>
-                {operator?.name ||
-                  operator?.fullName ||
-                  "Logistics Operator"}
-              </strong>
-
-              <span>Operations Team</span>
-            </div>
-          </div>
-
-          <Link
-            to="/login"
-            className="eta-logout"
-          >
-            ↪ Logout
-          </Link>
-        </div>
-      </aside>
+      <LogisticsOperatorSidebar />
 
       {/* ================= MAIN ================= */}
       <main className="eta-main">
@@ -667,34 +566,6 @@ function OperatorETADelays() {
             </p>
           </div>
 
-          <div className="eta-header-actions">
-            <div className="eta-live-status">
-              <span></span>
-              System Live
-            </div>
-            <button
-              type="button"
-              className="eta-refresh-button"
-              onClick={() => setRefreshKey((value) => value + 1)}
-              disabled={loading}
-  >
-              {loading ? "Refreshing..." : "Refresh ETA"}
-            </button>
-
-            <button
-              type="button"
-              className="eta-notification"
-              aria-label="Notifications"
-            >
-              ↻
-
-              {delayedRecords.length > 0 && (
-                <span>
-                  {delayedRecords.length}
-                </span>
-              )}
-            </button>
-          </div>
         </header>
 
         {error && (
@@ -1247,40 +1118,6 @@ function OperatorETADelays() {
                   </small>
                 </>
               )}
-            </div>
-          </div>
-
-          <div className="eta-insight-card">
-            <div className="eta-insight-icon">
-              ◷
-            </div>
-
-            <div>
-              <span>Average Recovery</span>
-
-              <strong>Data unavailable</strong>
-
-              <small>
-                Recovery-time history is not provided by
-                the current backend.
-              </small>
-            </div>
-          </div>
-
-          <div className="eta-insight-card success">
-            <div className="eta-insight-icon">
-              ✓
-            </div>
-
-            <div>
-              <span>ETA Accuracy</span>
-
-              <strong>Data unavailable</strong>
-
-              <small>
-                Historical ETA accuracy is not provided by
-                the current backend.
-              </small>
             </div>
           </div>
         </section>

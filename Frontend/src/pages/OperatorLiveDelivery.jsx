@@ -1,12 +1,9 @@
-import { Link } from "react-router-dom";
-
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 
 import {
-  ArrowLeft,
-  Bell,
   CheckCircle2,
   Clock3,
   MapPin,
@@ -17,8 +14,6 @@ import {
   Truck,
   UserRound,
   AlertTriangle,
-  MoreHorizontal,
-  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -47,19 +42,16 @@ L.Icon.Default.mergeOptions({
 function OperatorLiveDelivery() {
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
   const [locations, setLocations] = useState({});
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      const [user, shipments] = await Promise.all([
+      const [, shipments] = await Promise.all([
         apiRequest("/api/users/me"),
         apiRequest("/api/shipments"),
       ]);
-
-      setCurrentUser(user);
 
       const shipmentList = Array.isArray(shipments) ? shipments : [];
       setDeliveries(shipmentList);
@@ -97,21 +89,6 @@ function OperatorLiveDelivery() {
     loadData();
   }, []);
 
-  const operatorName =
-    currentUser?.name ||
-    currentUser?.fullName ||
-    currentUser?.username ||
-    currentUser?.email ||
-    "Operator";
-
-  const operatorInitials = operatorName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
   const activeDeliveries = deliveries.filter(
     (delivery) =>
       delivery.status !== "DELIVERED" &&
@@ -132,80 +109,7 @@ function OperatorLiveDelivery() {
 
   return (
     <div className="operator-live-page">
-      {/* Sidebar */}
-      <aside className="operator-live-sidebar">
-        <div className="operator-brand">
-          <div className="operator-brand-icon">
-            <Truck size={22} />
-          </div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>PRO</span>
-          </div>
-        </div>
-
-        <div className="operator-role">
-          <span className="role-dot"></span>
-          Logistics Operator
-        </div>
-
-        <nav className="operator-live-nav">
-          <Link to="/dashboard/operator">
-            <Navigation size={18} />
-            Dashboard
-          </Link>
-
-          <Link to="/operator/live-delivery" className="active">
-            <Radio size={18} />
-            Live Deliveries
-            <span className="nav-count">{activeDeliveries.length}</span>
-          </Link>
-
-          <Link to="/operator/shipment-tracking">
-            <Package size={18} />
-            Shipment Tracking
-          </Link>
-
-          <Link to="/operator/driver-tracking">
-            <UserRound size={18} />
-            Driver Tracking
-          </Link>
-
-          <Link to="/operator/routes">
-            <MapPin size={18} />
-            Route Management
-          </Link>
-
-          <Link to="/operator/eta-delay">
-            <Clock3 size={18} />
-            ETA & Delays
-          </Link>
-
-          <Link to="/operator/pod">
-            <CheckCircle2 size={18} />
-            Proof of Delivery
-          </Link>
-        </nav>
-
-        <div className="sidebar-bottom">
-          <Link to="/dashboard/operator" className="back-dashboard">
-            <ArrowLeft size={17} />
-            Back to Dashboard
-          </Link>
-
-          <div className="operator-user">
-            <div className="operator-avatar">{operatorInitials}</div>
-
-            <div>
-              <strong>{operatorName}</strong>
-              <span>Logistics Operator</span>
-            </div>
-
-            <MoreHorizontal size={18} />
-          </div>
-        </div>
-      </aside>
+      <LogisticsOperatorSidebar />
 
       {/* Main Content */}
       <main className="operator-live-main">
@@ -225,28 +129,9 @@ function OperatorLiveDelivery() {
                 </p>
               </div>
 
-              <div className="live-indicator">
-                <span></span>
-                LIVE
-              </div>
             </div>
           </div>
 
-          <div className="header-actions">
-            <button className="icon-button">
-              <Bell size={20} />
-              <span className="notification-dot"></span>
-            </button>
-
-            <button
-              className="refresh-button"
-              onClick={loadData}
-              disabled={loading}
-            >
-              <RefreshCw size={17} />
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
         </header>
 
         {/* Stats */}

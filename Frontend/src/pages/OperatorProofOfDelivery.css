@@ -535,6 +535,15 @@
   word-break: break-word;
 }
 
+.pod-details-grid .pod-status-error {
+  display: block;
+  margin-top: 5px;
+  color: #b91c1c;
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .pod-address {
   grid-column: span 2;
 }

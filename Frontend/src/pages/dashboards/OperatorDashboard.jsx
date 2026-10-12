@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../api";
+import LogisticsOperatorSidebar from "../../components/LogisticsOperatorSidebar";
 import "./OperatorDashboard.css";
 
 function OperatorDashboard() {
@@ -459,18 +460,6 @@ function OperatorDashboard() {
 
   /*
    * ---------------------------------------------------------
-   * DYNAMIC OPERATOR NAME
-   * ---------------------------------------------------------
-   */
-
-  const displayedOperatorName =
-    operator?.name ||
-    operator?.fullName ||
-    operator?.username ||
-    "Logistics Operator";
-
-  /*
-   * ---------------------------------------------------------
    * RENDER
    * ---------------------------------------------------------
    */
@@ -478,105 +467,7 @@ function OperatorDashboard() {
   return (
     <div className="operator-dashboard">
 
-      {/* ================= SIDEBAR ================= */}
-
-      <aside className="operator-sidebar">
-
-        <div className="operator-brand">
-          <div className="operator-brand-logo">
-            S
-          </div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Operator Console</span>
-          </div>
-        </div>
-
-        <nav className="operator-nav">
-
-          <Link
-            to="/dashboard/operator"
-            className="operator-nav-link active"
-          >
-            <span className="operator-nav-icon">⌂</span>
-            Dashboard
-          </Link>
-
-          <Link
-            to="/operator/shipment-tracking"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">▣</span>
-            Shipment Tracking
-          </Link>
-
-          <Link
-            to="/operator/live-delivery"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">◎</span>
-            Live Deliveries
-          </Link>
-
-          <Link
-            to="/operator/driver-tracking"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">♙</span>
-            Driver Tracking
-          </Link>
-
-          <Link
-            to="/operator/routes"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">⌁</span>
-            Route Management
-          </Link>
-
-          <Link
-            to="/operator/eta-delay"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">◷</span>
-            ETA & Delays
-          </Link>
-
-          <Link
-            to="/operator/pod"
-            className="operator-nav-link"
-          >
-            <span className="operator-nav-icon">✓</span>
-            Proof of Delivery
-          </Link>
-
-        </nav>
-
-        <div className="operator-sidebar-bottom">
-
-          <div className="operator-user">
-            <div className="operator-avatar">
-              OP
-            </div>
-
-            <div>
-              <strong>{displayedOperatorName}</strong>
-              <span>Operations Team</span>
-            </div>
-          </div>
-
-          <Link
-            to="/login"
-            className="operator-logout"
-          >
-            <span>↪</span>
-            Logout
-          </Link>
-
-        </div>
-
-      </aside>
+      <LogisticsOperatorSidebar />
 
 
       {/* ================= MAIN ================= */}
@@ -598,24 +489,6 @@ function OperatorDashboard() {
               Monitor deliveries, drivers, routes and shipment operations
               from one place.
             </p>
-          </div>
-
-          <div className="operator-header-actions">
-
-            <div className="operator-live-status">
-              <span></span>
-              System Live
-            </div>
-
-            <button
-              className="operator-notification"
-              type="button"
-              title="Notifications"
-            >
-              ♢
-              <span>0</span>
-            </button>
-
           </div>
 
         </header>

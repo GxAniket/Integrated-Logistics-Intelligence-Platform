@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./BusinessShipmentHistory.css";
 
 const normalizeStatus = (status) =>
@@ -321,134 +322,7 @@ function BusinessShipmentHistory() {
   return (
     <div className="business-history-page">
 
-      {/* =====================================
-          SIDEBAR
-          ===================================== */}
-
-      <aside className="business-history-sidebar">
-
-        <div className="business-history-logo">
-
-          <div className="business-history-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>
-              ShipTrack Pro
-            </h2>
-
-            <span>
-              LOGISTICS INTELLIGENCE
-            </span>
-          </div>
-
-        </div>
-
-        <div className="business-history-menu-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav>
-
-          <Link
-            to="/dashboard/business"
-            className="business-history-nav"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-history-nav"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-history-nav"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-history-nav active"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-history-nav"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="business-history-nav"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-history-nav"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-history-nav"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-history-nav"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-history-nav"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-history-nav"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <Link
-          to="/login"
-          className="business-history-logout"
-        >
-          ⇥ Logout
-        </Link>
-
-      </aside>
+      <BusinessClientSidebar />
 
       {/* =====================================
           MAIN

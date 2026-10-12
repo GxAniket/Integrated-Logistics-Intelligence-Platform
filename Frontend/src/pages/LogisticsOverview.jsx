@@ -2,22 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./LogisticsOverview.css";
-
-const NAV_ITEMS = [
-  ["⌂", "Overview", "/dashboard/business"],
-  ["＋", "Create Shipment", "/business/create-shipment"],
-  ["▣", "Shipment Management", "/business/shipment-management"],
-  ["◷", "Shipment History", "/business/shipment-history"],
-  ["□", "Package Information", "/business/package-information"],
-  ["⌖", "Tracking", "/business/tracking"],
-  ["↗", "Delivery Performance", "/business/delivery-performance"],
-  ["△", "Delay Analysis", "/business/delay-analysis"],
-  ["◈", "Logistics Overview", "/business/logistics-overview"],
-  ["♙", "Customer Activity", "/business/customer-activity"],
-  ["▤", "Reports & Export", "/business/reports"],
-  ["♢", "Notifications", "/business/notifications"],
-];
 
 const TERMINAL_STATUSES = [
   "DELIVERED",
@@ -291,44 +277,7 @@ export default function LogisticsOverview() {
 
   return (
     <div className="logistics-page">
-      <aside className="business-sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-icon">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Business Portal</span>
-          </div>
-        </div>
-
-        <div className="sidebar-section">
-          <div className="sidebar-label">BUSINESS</div>
-
-          <nav>
-            {NAV_ITEMS.map(([icon, label, path]) => (
-              <Link
-                key={path}
-                to={path}
-                className={`business-nav-link ${
-                  path === "/business/logistics-overview"
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <span className="nav-icon">{icon}</span>
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="sidebar-bottom">
-          <Link to="/login" className="business-logout">
-            <span className="nav-icon">↪</span>
-            Logout
-          </Link>
-        </div>
-      </aside>
+      <BusinessClientSidebar />
 
       <main className="logistics-main">
         <div className="logistics-topbar">

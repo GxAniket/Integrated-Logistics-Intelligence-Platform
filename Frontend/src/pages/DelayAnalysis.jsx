@@ -1,22 +1,8 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./DelayAnalysis.css";
-
-const NAV_ITEMS = [
-  ["⌂", "Overview", "/dashboard/business"],
-  ["＋", "Create Shipment", "/business/create-shipment"],
-  ["▣", "Shipment Management", "/business/shipment-management"],
-  ["◷", "Shipment History", "/business/shipment-history"],
-  ["□", "Package Information", "/business/package-information"],
-  ["⌁", "Tracking", "/business/tracking"],
-  ["↗", "Delivery Performance", "/business/delivery-performance"],
-  ["!", "Delay Analysis", "/business/delay-analysis"],
-  ["◎", "Logistics Overview", "/business/logistics-overview"],
-  ["♙", "Customer Activity", "/business/customer-activity"],
-  ["▥", "Reports & Export", "/business/reports"],
-];
 
 function getUserName(user) {
   return (
@@ -210,40 +196,7 @@ export default function DelayAnalysis() {
 
   return (
     <div className="delay-analysis-page">
-      <aside className="business-sidebar">
-        <div className="business-brand">
-          <div className="brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-        </div>
-
-        <div className="sidebar-section-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav className="business-navigation">
-          {NAV_ITEMS.map(([icon, label, path]) => (
-            <Link
-              key={path}
-              to={path}
-              className={`business-nav-link ${
-                path === "/business/delay-analysis" ? "active" : ""
-              }`}
-            >
-              <span className="nav-icon">{icon}</span>
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <Link to="/login" className="business-logout">
-          <span className="nav-icon">⇥</span>
-          Logout
-        </Link>
-      </aside>
+      <BusinessClientSidebar />
 
       <main className="delay-analysis-main">
         <div className="business-topbar">

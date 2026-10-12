@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
 import {
   CircleMarker,
   MapContainer,
@@ -20,6 +19,7 @@ import L from "leaflet";
 import "./OperatorRouteManagement.css";
 import "leaflet/dist/leaflet.css";
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 
 const ACTIVE_STATUSES = [
   "PICKED_UP",
@@ -616,105 +616,7 @@ function OperatorRouteManagement() {
   return (
     <div className="route-page">
 
-      {/* ================= SIDEBAR ================= */}
-
-      <aside className="route-sidebar">
-
-        <div className="route-brand">
-          <div className="route-brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Operator Console</span>
-          </div>
-        </div>
-
-        <nav className="route-nav">
-
-          <Link
-            to="/dashboard/operator"
-            className="route-nav-link"
-          >
-            <span>⌂</span>
-            Dashboard
-          </Link>
-
-          <Link
-            to="/operator/shipment-tracking"
-            className="route-nav-link"
-          >
-            <span>▣</span>
-            Shipment Tracking
-          </Link>
-
-          <Link
-            to="/operator/live-delivery"
-            className="route-nav-link"
-          >
-            <span>◎</span>
-            Live Deliveries
-          </Link>
-
-          <Link
-            to="/operator/driver-tracking"
-            className="route-nav-link"
-          >
-            <span>♙</span>
-            Driver Tracking
-          </Link>
-
-          <Link
-            to="/operator/routes"
-            className="route-nav-link active"
-          >
-            <span>⌁</span>
-            Route Management
-          </Link>
-
-          <Link
-            to="/operator/eta-delay"
-            className="route-nav-link"
-          >
-            <span>◷</span>
-            ETA & Delays
-          </Link>
-
-          <Link
-            to="/operator/pod"
-            className="route-nav-link"
-          >
-            <span>✓</span>
-            Proof of Delivery
-          </Link>
-
-        </nav>
-
-        <div className="route-sidebar-bottom">
-
-          <div className="route-user">
-
-            <div className="route-avatar">
-              OP
-            </div>
-
-            <div>
-              <strong>Logistics Operator</strong>
-              <span>Operations Team</span>
-            </div>
-
-          </div>
-
-          <Link
-            to="/login"
-            className="route-logout"
-          >
-            <span>↪</span>
-            Logout
-          </Link>
-
-        </div>
-
-      </aside>
+      <LogisticsOperatorSidebar />
 
 
       {/* ================= MAIN ================= */}

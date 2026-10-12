@@ -9,6 +9,7 @@ import {
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../api";
+import BusinessClientSidebar from "../../components/BusinessClientSidebar";
 import "./BusinessDashboard.css";
 
 const TERMINAL_STATUSES = [
@@ -362,138 +363,7 @@ function BusinessDashboard() {
   return (
     <div className="business-dashboard">
 
-      {/* ========================================
-          SIDEBAR
-          ======================================== */}
-
-      <aside className="business-sidebar">
-
-        <div className="business-logo">
-
-          <div className="business-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>
-              ShipTrack Pro
-            </h2>
-
-            <span>
-              LOGISTICS INTELLIGENCE
-            </span>
-          </div>
-
-        </div>
-
-        <div className="business-menu-title">
-          MAIN MENU
-        </div>
-
-        <nav className="business-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="business-nav-link active"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-nav-link"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-nav-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-nav-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="business-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-nav-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-nav-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <div className="business-sidebar-bottom">
-
-          <Link
-            to="/login"
-            className="business-logout"
-          >
-            ⇥ Logout
-          </Link>
-
-        </div>
-
-      </aside>
+      <BusinessClientSidebar />
 
       {/* ========================================
           MAIN

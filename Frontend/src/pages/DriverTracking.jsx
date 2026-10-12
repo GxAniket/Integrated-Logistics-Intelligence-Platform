@@ -1,5 +1,4 @@
 
-import { Link } from "react-router-dom";
 import {
   Fragment,
   useCallback,
@@ -8,18 +7,13 @@ import {
   useState,
 } from "react";
 import {
-  ArrowLeft,
-  Bell,
-  CheckCircle2,
   Clock3,
   MapPin,
   Navigation,
   Radio,
   Search,
-  Truck,
   UserRound,
   AlertTriangle,
-  MoreHorizontal,
   Gauge,
 } from "lucide-react";
 
@@ -34,6 +28,7 @@ import {
 import L from "leaflet";
 
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 import "leaflet/dist/leaflet.css";
 import "./DriverTracking.css";
 
@@ -784,14 +779,6 @@ function DriverTracking() {
     currentUser?.email ||
     "Operator";
 
-  const operatorInitials = operatorName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
   const drivers = shipments
     .filter((shipment) => shipment.assignedOperatorId != null)
     .map((shipment) => ({
@@ -814,11 +801,6 @@ function DriverTracking() {
 
   const isActiveShipment = (shipment) =>
     ACTIVE_DELIVERY_STATUSES.includes(shipment?.status);
-  const activeDriverIds = new Set(
-    drivers
-      .filter((driver) => isActiveShipment(driver.shipment))
-      .map((driver) => driver.operatorId)
-  );
   const onRoadDriverIds = new Set(
     drivers
       .filter((driver) => isActiveShipment(driver.shipment))
@@ -1028,99 +1010,7 @@ function DriverTracking() {
   return (
     <div className="driver-page">
 
-      {/* Sidebar */}
-
-      <aside className="driver-sidebar">
-
-        <div className="driver-brand">
-
-          <div className="driver-brand-icon">
-            <Truck size={22} />
-          </div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>PRO</span>
-          </div>
-
-        </div>
-
-        <div className="driver-role">
-          <span></span>
-          Logistics Operator
-        </div>
-
-        <nav className="driver-nav">
-
-          <Link to="/dashboard/operator">
-            <Navigation size={18} />
-            Dashboard
-          </Link>
-
-          <Link to="/operator/live-delivery">
-            <Radio size={18} />
-            Live Deliveries
-            <b>{activeDriverIds.size}</b>
-          </Link>
-
-          <Link to="/dashboard/operator">
-            <Truck size={18} />
-            Shipment Tracking
-          </Link>
-
-          <Link
-            to="/operator/driver-tracking"
-            className="active"
-          >
-            <UserRound size={18} />
-            Driver Tracking
-          </Link>
-
-          <Link to="/dashboard/operator">
-            <MapPin size={18} />
-            Route Management
-          </Link>
-
-          <Link to="/dashboard/operator">
-            <Clock3 size={18} />
-            ETA & Delays
-          </Link>
-
-          <Link to="/dashboard/operator">
-            <CheckCircle2 size={18} />
-            Proof of Delivery
-          </Link>
-
-        </nav>
-
-        <div className="driver-sidebar-bottom">
-
-          <Link
-            to="/dashboard/operator"
-            className="back-link"
-          >
-            <ArrowLeft size={17} />
-            Back to Dashboard
-          </Link>
-
-          <div className="driver-profile">
-
-            <div className="profile-avatar">
-              {operatorInitials || "OP"}
-            </div>
-
-            <div>
-              <strong>{operatorName}</strong>
-              <span>Logistics Operator</span>
-            </div>
-
-            <MoreHorizontal size={18} />
-
-          </div>
-
-        </div>
-
-      </aside>
+      <LogisticsOperatorSidebar />
 
 
       {/* Main */}
@@ -1150,38 +1040,7 @@ function DriverTracking() {
 
               </div>
 
-              <div className="driver-live-badge">
-                <span></span>
-                {loadError
-                  ? "TRACKING ERROR"
-                  : loading
-                    ? "LOADING TRACKING"
-                    : "LIVE TRACKING"}
-              </div>
-
             </div>
-
-          </div>
-
-          <div className="driver-header-actions">
-
-            <button className="driver-icon-btn">
-              <Bell size={20} />
-              <i></i>
-            </button>
-
-            <button
-              className="driver-refresh"
-              onClick={loadData}
-              disabled={loading}
-            >
-              <Radio size={16} />
-              {loadError
-                ? "Tracking Error"
-                : loading
-                  ? "Refreshing..."
-                  : "Tracking Active"}
-            </button>
 
           </div>
 

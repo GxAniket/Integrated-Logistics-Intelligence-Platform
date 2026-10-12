@@ -1,21 +1,14 @@
-import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../api";
+import LogisticsOperatorSidebar from "../components/LogisticsOperatorSidebar";
 
 import {
-  ArrowLeft,
-  Bell,
   CheckCircle2,
   Clock3,
-  Navigation,
   Package,
-  Radio,
-  RefreshCw,
   Search,
   Truck,
-  UserRound,
   AlertTriangle,
-  Route as RouteIcon,
   X,
 } from "lucide-react";
 
@@ -46,9 +39,6 @@ function OperatorShipmentTracking() {
 
   const [loading, setLoading] =
     useState(true);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
 
   const [selectedShipment, setSelectedShipment] =
     useState(null);
@@ -215,15 +205,9 @@ function OperatorShipmentTracking() {
      LOAD SHIPMENTS
      ========================================================= */
 
-  const loadShipments = async (
-    showRefresh = false
-  ) => {
+  const loadShipments = async () => {
     try {
-      if (showRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      setLoading(true);
 
       setError("");
 
@@ -255,7 +239,6 @@ function OperatorShipmentTracking() {
       setShipments([]);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -264,16 +247,8 @@ function OperatorShipmentTracking() {
      ========================================================= */
 
   useEffect(() => {
-    loadShipments(false);
+    loadShipments();
   }, []);
-
-  /* =========================================================
-     REFRESH
-     ========================================================= */
-
-  const refreshAll = async () => {
-    await loadShipments(true);
-  };
 
   const openStatusModal = (shipment) => {
     if (!shipment?.id) {
@@ -434,102 +409,7 @@ function OperatorShipmentTracking() {
   return (
     <div className="operator-shipment-page">
 
-      {/* ================= SIDEBAR ================= */}
-
-      <aside className="operator-shipment-sidebar">
-
-        <div className="shipment-brand">
-
-          <div className="shipment-brand-icon">
-            <Truck size={22} />
-          </div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>PRO</span>
-          </div>
-
-        </div>
-
-        <div className="shipment-role">
-          <span></span>
-          Logistics Operator
-        </div>
-
-        <nav className="shipment-nav">
-
-          <Link to="/dashboard/operator">
-            <Navigation size={18} />
-            Dashboard
-          </Link>
-
-          <Link
-            to="/operator/shipment-tracking"
-            className="active"
-          >
-            <Package size={18} />
-            Shipment Tracking
-          </Link>
-
-          <Link to="/operator/live-delivery">
-            <Radio size={18} />
-            Live Deliveries
-
-            {inTransitShipments.length > 0 && (
-              <b>
-                {inTransitShipments.length}
-              </b>
-            )}
-          </Link>
-
-          <Link to="/operator/driver-tracking">
-            <UserRound size={18} />
-            Driver Tracking
-          </Link>
-
-          <Link to="/operator/routes">
-            <RouteIcon size={18} />
-            Route Management
-          </Link>
-
-          <Link to="/operator/eta-delay">
-            <Clock3 size={18} />
-            ETA & Delays
-          </Link>
-
-          <Link to="/operator/pod">
-            <CheckCircle2 size={18} />
-            Proof of Delivery
-          </Link>
-
-        </nav>
-
-        <div className="shipment-sidebar-bottom">
-
-          <div className="shipment-user">
-
-            <div className="shipment-avatar">
-              OP
-            </div>
-
-            <div>
-              <strong>Operator</strong>
-              <span>Operations Team</span>
-            </div>
-
-          </div>
-
-          <Link
-            to="/dashboard/operator"
-            className="shipment-back"
-          >
-            <ArrowLeft size={17} />
-            Back to Dashboard
-          </Link>
-
-        </div>
-
-      </aside>
+      <LogisticsOperatorSidebar />
 
       {/* ================= MAIN ================= */}
 
@@ -559,46 +439,7 @@ function OperatorShipmentTracking() {
 
               </div>
 
-              <div className="shipment-live">
-                <span></span>
-                LIVE
-              </div>
-
             </div>
-
-          </div>
-
-          <div className="shipment-header-actions">
-
-            <button
-              type="button"
-              className="shipment-refresh"
-              onClick={refreshAll}
-              disabled={refreshing}
-            >
-
-              <RefreshCw
-                size={16}
-                className={
-                  refreshing
-                    ? "shipment-spin"
-                    : ""
-                }
-              />
-
-              {refreshing
-                ? "Refreshing..."
-                : "Refresh"}
-
-            </button>
-
-            <button
-              type="button"
-              className="shipment-icon-button"
-              title="Notifications"
-            >
-              <Bell size={18} />
-            </button>
 
           </div>
 

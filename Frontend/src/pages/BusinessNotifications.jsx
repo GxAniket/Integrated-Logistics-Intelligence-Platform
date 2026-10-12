@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./BusinessNotifications.css";
 
 function BusinessNotifications() {
-  const [user, setUser] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -14,13 +14,9 @@ function BusinessNotifications() {
 
     async function loadActivities() {
       try {
-        const [currentUser, shipments] = await Promise.all([
-          apiRequest("/api/users/me"),
-          apiRequest("/api/shipments"),
-        ]);
+        const shipments = await apiRequest("/api/shipments");
         if (!active) return;
 
-        setUser(currentUser);
         const shipmentList = Array.isArray(shipments) ? shipments : [];
         const histories = await Promise.all(
           shipmentList
@@ -72,141 +68,10 @@ function BusinessNotifications() {
     }
   };
 
-  const userName =
-    user?.fullName || user?.name || user?.email || "Business Client";
-
   return (
     <div className="business-notifications-page">
 
-      {/* SIDEBAR */}
-      <aside className="business-sidebar">
-
-        <div className="business-brand">
-          <div className="brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Business Portal</span>
-          </div>
-        </div>
-
-        <nav className="business-nav">
-
-          <Link to="/dashboard/business" className="business-nav-link">
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-nav-link"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-nav-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-nav-link"
-          >
-            <span>▤</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="business-nav-link"
-          >
-            <span>◎</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-nav-link"
-          >
-            <span>△</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-nav-link"
-          >
-            <span>⌁</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-          <Link
-            to="/business/notifications"
-            className="business-nav-link active"
-          >
-            <span>♢</span>
-            Notifications
-          </Link>
-
-        </nav>
-
-        <div className="business-sidebar-bottom">
-
-          <div className="business-user-card">
-            <div className="business-avatar">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-
-            <div>
-              <strong>{userName}</strong>
-              <span>Business Client</span>
-            </div>
-          </div>
-
-          <Link to="/login" className="business-logout">
-            <span>↪</span>
-            Logout
-          </Link>
-
-        </div>
-      </aside>
+      <BusinessClientSidebar />
 
       {/* MAIN CONTENT */}
       <main className="business-notifications-main">

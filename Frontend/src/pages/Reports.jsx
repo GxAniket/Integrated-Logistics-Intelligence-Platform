@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./Reports.css";
 
 const ACTIVE_STATUSES = [
@@ -142,12 +142,6 @@ function Reports() {
 
   const initials = getInitials(userName);
 
-  function handleLogout() {
-    localStorage.removeItem("shiptrackToken");
-    localStorage.removeItem("shiptrackUser");
-    window.location.href = "/login";
-  }
-
   function exportCsv(records = filteredShipments) {
     if (!records.length) return;
 
@@ -213,6 +207,7 @@ function Reports() {
   if (loading) {
     return (
       <div className="reports-page">
+        <BusinessClientSidebar />
         <main className="reports-main">
           <div style={{ padding: "40px" }}>
             <h1>Reports & Export</h1>
@@ -226,107 +221,7 @@ function Reports() {
   return (
     <div className="reports-page">
 
-      {/* SIDEBAR */}
-      <aside className="business-sidebar">
-
-        <div className="sidebar-brand">
-          <div className="brand-icon">S</div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>Business Portal</span>
-          </div>
-        </div>
-
-        <div className="sidebar-section">
-
-          <p className="sidebar-label">BUSINESS</p>
-
-          <nav>
-            <Link to="/business/dashboard" className="business-nav-link">
-              <span className="nav-icon">⌂</span>
-              Overview
-            </Link>
-
-            <Link to="/business/create-shipment" className="business-nav-link">
-              <span className="nav-icon">＋</span>
-              Create Shipment
-            </Link>
-
-            <Link to="/business/shipments" className="business-nav-link">
-              <span className="nav-icon">▣</span>
-              Shipment Management
-            </Link>
-
-            <Link to="/business/history" className="business-nav-link">
-              <span className="nav-icon">◷</span>
-              Shipment History
-            </Link>
-
-            <Link to="/business/packages" className="business-nav-link">
-              <span className="nav-icon">▤</span>
-              Package Information
-            </Link>
-
-            <Link to="/business/tracking" className="business-nav-link">
-              <span className="nav-icon">⌖</span>
-              Tracking
-            </Link>
-
-            <Link to="/business/performance" className="business-nav-link">
-              <span className="nav-icon">◒</span>
-              Delivery Performance
-            </Link>
-
-            <Link to="/business/delay-analysis" className="business-nav-link">
-              <span className="nav-icon">!</span>
-              Delay Analysis
-            </Link>
-
-            <Link to="/business/logistics" className="business-nav-link">
-              <span className="nav-icon">◇</span>
-              Logistics Overview
-            </Link>
-
-            <Link to="/business/customer-activity" className="business-nav-link">
-              <span className="nav-icon">♙</span>
-              Customer Activity
-            </Link>
-
-            <Link
-              to="/business/reports"
-              className="business-nav-link active"
-            >
-              <span className="nav-icon">▥</span>
-              Reports & Export
-            </Link>
-          </nav>
-
-        </div>
-
-        <div className="sidebar-bottom">
-
-          <div className="business-status">
-            <span className="status-dot"></span>
-
-            <div>
-              <strong>Operational</strong>
-              <small>All services running</small>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="business-logout"
-            onClick={handleLogout}
-          >
-            <span className="nav-icon">↪</span>
-            Logout
-          </button>
-
-        </div>
-
-      </aside>
+      <BusinessClientSidebar />
 
       {/* MAIN */}
       <main className="reports-main">

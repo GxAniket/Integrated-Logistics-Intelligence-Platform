@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./ShipmentManagement.css";
 
 const ACTIVE_STATUSES = [
@@ -235,90 +236,9 @@ function ShipmentManagement() {
 
   const initials = getInitials(userName);
 
-  function handleLogout() {
-    localStorage.removeItem("shiptrackToken");
-    localStorage.removeItem("shiptrackUser");
-
-    window.location.href = "/login";
-  }
-
   return (
     <div className="shipment-management-page">
-      {/* SIDEBAR */}
-      <aside className="management-sidebar">
-        <div className="management-logo">
-          <div className="management-logo-icon">
-            <Package size={21} />
-          </div>
-
-          <div>
-            <h2>ShipTrack</h2>
-            <span>PRO</span>
-          </div>
-        </div>
-
-        <div className="management-menu-title">BUSINESS CLIENT</div>
-
-        <nav className="management-navigation">
-          <Link
-            to="/dashboard/business"
-            className="management-nav-link"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="management-nav-link active"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="management-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="management-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/notifications"
-            className="management-nav-link"
-          >
-            <span>◉</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="management-nav-link"
-          >
-            <span>◈</span>
-            Reports & Export
-          </Link>
-        </nav>
-
-        <div className="management-logout">
-          <button
-            type="button"
-            onClick={handleLogout}
-          >
-            <span>↪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
+      <BusinessClientSidebar />
 
       {/* MAIN */}
       <main className="management-main">

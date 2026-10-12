@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./DeliveryPerformance.css";
 
 function DeliveryPerformance() {
@@ -378,127 +378,7 @@ function DeliveryPerformance() {
   return (
     <div className="delivery-performance-page">
 
-      {/* SIDEBAR */}
-      <aside className="business-sidebar">
-
-        <div className="business-brand">
-          <div className="brand-logo">S</div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-        </div>
-
-        <div className="sidebar-section-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav className="business-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">⌁</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-nav-link active"
-          >
-            <span className="nav-icon">↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-nav-link"
-          >
-            <span className="nav-icon">▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <Link
-          to="/login"
-          className="business-logout"
-          onClick={() => {
-            localStorage.removeItem("shiptrackToken");
-            localStorage.removeItem("shiptrackUser");
-          }}
-        >
-          <span className="nav-icon">⇥</span>
-          Logout
-        </Link>
-
-      </aside>
+      <BusinessClientSidebar />
 
       {/* MAIN */}
       <main className="delivery-performance-main">
