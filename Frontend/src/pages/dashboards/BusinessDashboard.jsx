@@ -136,10 +136,11 @@ function BusinessDashboard() {
   const [user, setUser] = useState(null);
   const [shipments, setShipments] = useState([]);
   const [routes, setRoutes] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [routeError, setRouteError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -148,18 +149,36 @@ function BusinessDashboard() {
       try {
         setLoading(true);
         setError("");
+        setProfileError("");
+        setRouteError("");
 
-        const [userResponse, shipmentResponse, analyticsResponse] =
-          await Promise.all([
-            apiRequest("/api/users/me"),
-            apiRequest("/api/shipments"),
-            apiRequest("/api/analytics"),
-          ]);
+        const [userResult, shipmentResult] = await Promise.allSettled([
+          apiRequest("/api/users/me"),
+          apiRequest("/api/shipments"),
+        ]);
 
         if (!mounted) {
           return;
         }
 
+        if (userResult.status === "fulfilled") {
+          setUser(userResult.value);
+          setProfileError("");
+        } else {
+          console.error(
+            "Business dashboard profile loading error:",
+            userResult.reason
+          );
+          setProfileError(
+            userResult.reason?.message || "Unable to load profile details."
+          );
+        }
+
+        if (shipmentResult.status === "rejected") {
+          throw shipmentResult.reason;
+        }
+
+        const shipmentResponse = shipmentResult.value;
         const shipmentList = Array.isArray(shipmentResponse)
           ? shipmentResponse
           : Array.isArray(shipmentResponse?.content)
@@ -168,64 +187,55 @@ function BusinessDashboard() {
               ? shipmentResponse.data
               : [];
 
-        setUser(userResponse);
         setShipments(shipmentList);
-        setAnalytics(analyticsResponse);
 
         /*
          * Read existing route information from the backend.
          * No route is created or modified here.
          */
-        const routeResults = await Promise.allSettled(
-          shipmentList
-            .filter((shipment) => shipment?.id)
-            .map((shipment) =>
-              apiRequest(
-                `/api/routes/shipment/${shipment.id}`
+        try {
+          const routeResults = await Promise.allSettled(
+            shipmentList
+              .filter((shipment) => shipment?.id)
+              .map((shipment) =>
+                apiRequest(
+                  `/api/routes/shipment/${shipment.id}`
+                )
               )
-            )
-        );
+          );
 
-        if (!mounted) {
-          return;
-        }
+          if (!mounted) {
+            return;
+          }
 
-        const failedRouteResults = routeResults.filter(
-          (result) =>
-            result.status === "rejected" &&
-            result.reason?.status !== 404
-        );
-        if (failedRouteResults.length > 0) {
-          throw failedRouteResults[0].reason;
-        }
-
-        const routeList = routeResults
-          .filter(
+          const failedRouteResult = routeResults.find(
             (result) =>
-              result.status === "fulfilled"
-          )
-          .map((result) => result.value)
-          .filter(Boolean);
+              result.status === "rejected" &&
+              result.reason?.status !== 404
+          );
+          if (failedRouteResult) {
+            throw failedRouteResult.reason;
+          }
 
-        setRoutes(routeList);
+          const routeList = routeResults
+            .filter((result) => result.status === "fulfilled")
+            .map((result) => result.value)
+            .filter(Boolean);
+
+          setRoutes(routeList);
+        } catch (err) {
+          console.error("Business route loading error:", err);
+          setRouteError(err?.message || "Unable to load saved routes.");
+        }
       } catch (err) {
-        console.error(
-          "Business dashboard loading error:",
-          err
-        );
-
         if (!mounted) {
           return;
         }
 
-        setError(
-          err?.message ||
-            "Unable to load dashboard data."
-        );
-
+        console.error("Business shipment loading error:", err);
+        setError(err?.message || "Unable to load shipment data.");
         setShipments([]);
         setRoutes([]);
-        setAnalytics(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -246,7 +256,18 @@ function BusinessDashboard() {
    * ==========================================
    */
 
-  const totalShipments = analytics?.totalShipments ?? 0;
+  const totalShipments = shipments.length;
+  const inTransitShipments = shipments.filter((shipment) =>
+    ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(
+      normalizeStatus(shipment?.status)
+    )
+  ).length;
+  const deliveredShipments = shipments.filter(
+    (shipment) => normalizeStatus(shipment?.status) === "DELIVERED"
+  ).length;
+  const failedShipments = shipments.filter(
+    (shipment) => normalizeStatus(shipment?.status) === "FAILED_DELIVERY"
+  ).length;
 
   /*
    * ==========================================
@@ -439,6 +460,12 @@ function BusinessDashboard() {
             {error}
           </div>
         )}
+        {profileError && (
+          <div role="status" className="business-data-notice">
+            Shipment data is available, but profile details could not be loaded:{" "}
+            {profileError}
+          </div>
+        )}
 
         {/* ======================================
             QUICK ACTION
@@ -540,7 +567,7 @@ function BusinessDashboard() {
             <strong>
               {loading
                 ? "..."
-                : analytics?.inTransitShipments ?? 0}
+                : inTransitShipments}
             </strong>
 
             <small>
@@ -571,7 +598,7 @@ function BusinessDashboard() {
             <strong>
               {loading
                 ? "..."
-                : analytics?.deliveredShipments ?? 0}
+                : deliveredShipments}
             </strong>
 
             <small>
@@ -602,7 +629,7 @@ function BusinessDashboard() {
             <strong>
               {loading
                 ? "..."
-                : analytics?.delayedShipments ?? 0}
+                : failedShipments}
             </strong>
 
             <small>
@@ -822,6 +849,11 @@ function BusinessDashboard() {
                 <strong>
                   {activeRoutes.length}
                 </strong>
+                {routeError && (
+                  <small role="status">
+                    Route details unavailable: {routeError}
+                  </small>
+                )}
 
               </div>
 

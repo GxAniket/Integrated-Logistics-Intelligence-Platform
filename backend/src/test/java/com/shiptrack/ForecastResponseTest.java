@@ -29,7 +29,6 @@ class ForecastResponseTest {
 
         Forecast forecast = new Forecast();
         forecast.setShipment(shipment);
-        forecast.setConfidence(0.75);
         forecast.setPredictedStatus(ShipmentStatus.IN_TRANSIT);
 
         String json = new ObjectMapper()
@@ -38,6 +37,7 @@ class ForecastResponseTest {
         assertThat(json)
                 .contains("\"trackingNumber\":\"STP-2026-00021\"")
                 .contains("\"status\":\"DELIVERED\"")
+                .doesNotContain("\"confidence\"")
                 .doesNotContain(
                         "passwordHash",
                         "sensitive-hash",

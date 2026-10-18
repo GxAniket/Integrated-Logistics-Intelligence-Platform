@@ -15,12 +15,21 @@ This folder combines the current React frontend with the completed Spring Boot s
 
 ```powershell
 cd backend
+$env:DB_URL = "jdbc:postgresql://localhost:5432/shiptrack_db"
+$env:DB_USERNAME = "postgres"
+$env:DB_PASSWORD = Read-Host "gifty"
 .\mvnw.cmd clean spring-boot:run
+
 ```
 
 Backend runs on `http://localhost:8080`.
 
-Update `backend/src/main/resources/application.properties` if your PostgreSQL username/password differs.
+The database URL, username, and password can be supplied through `DB_URL`,
+`DB_USERNAME`, and `DB_PASSWORD`; the defaults target the local `shiptrack_db`
+database and the `postgres` user. Set `DB_PASSWORD` in your environment before
+running the backend or its database-backed tests.
+Backend tests use an isolated in-memory H2 database; running the application still requires PostgreSQL.
+Public registration supports customers, business clients, and logistics operators; administrator and support accounts are provisioned from the administrator dashboard.
 Password reset sends a 6-digit email code that expires after 10 minutes. Configure
 `MAIL_HOST` and `MAIL_PORT`; when required by your provider, also set
 `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, and
@@ -42,6 +51,7 @@ Set `VITE_API_BASE_URL` before starting Vite to use a different backend URL; the
 ## Main API endpoints
 
 - `POST /api/auth/register`
+- `POST /api/users/privileged` (administrator only; creates administrator or support accounts)
 - `POST /api/auth/login`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
@@ -63,6 +73,10 @@ Set `VITE_API_BASE_URL` before starting Vite to use a different backend URL; the
 - `POST` and `GET /api/shipments/{id}/pod`
 - `GET /api/notifications`
 - `PATCH /api/notifications/{id}/read` and `/read-all`
+
+## Project report
+
+See [PROJECT_REPORT.md](./PROJECT_REPORT.md) for the implemented feature overview, shipment tracking flow, route generation, ETA formula, forecasts, and role-based capabilities.
 
 Forecast responses include a limited shipment summary rather than serializing
 the full shipment and its related user accounts.

@@ -130,14 +130,6 @@ function getUserInitials(user) {
   ).toUpperCase();
 }
 
-function getUserRole(user) {
-  if (!user?.role) return "CUSTOMER";
-
-  return String(user.role)
-    .replace("ROLE_", "")
-    .replaceAll("_", " ");
-}
-
 function ShipmentHistory() {
   const [user, setUser] = useState(null);
   const [shipments, setShipments] = useState([]);

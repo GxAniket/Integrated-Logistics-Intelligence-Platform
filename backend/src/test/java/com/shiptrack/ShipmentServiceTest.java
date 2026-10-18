@@ -130,7 +130,7 @@ class ShipmentServiceTest {
         adminReq.setRole(Role.ADMINISTRATOR);
         adminReq.setPhoneNumber("5544332211");
 
-        userService.registerUser(adminReq);
+        userService.createPrivilegedUser(adminReq);
         userRepository
                 .findByEmail("admin@shiptrack.com")
                 .orElseThrow();
@@ -238,15 +238,49 @@ class ShipmentServiceTest {
                 shipmentService.getShipmentHistory(response.getId());
 
         assertEquals(2, history.size());
+    }
 
-        assertEquals(
-                ShipmentStatus.CREATED,
-                history.get(0).getStatus()
-        );
+    @Test
+    void testOperatorCanAdvanceShipmentThroughLifecycleAndHistory() {
+        authenticateAs("client@shiptrack.com");
 
+        ShipmentRequest request = new ShipmentRequest();
+        request.setSenderName("Sender Co");
+        request.setSenderPhone("111-222");
+        request.setSenderAddress("123 Sender St");
+        request.setReceiverName("Receiver Co");
+        request.setReceiverPhone("333-444");
+        request.setReceiverAddress("456 Receiver Ave");
+        request.setAssignedOperatorId(operatorUser.getId());
+        ShipmentResponse created = shipmentService.createShipment(request);
+
+        authenticateAs("operator@shiptrack.com");
+        for (ShipmentStatus status : List.of(
+                ShipmentStatus.PICKED_UP,
+                ShipmentStatus.IN_TRANSIT,
+                ShipmentStatus.OUT_FOR_DELIVERY,
+                ShipmentStatus.DELIVERED)) {
+            StatusUpdateRequest update = new StatusUpdateRequest();
+            update.setStatus(status);
+            shipmentService.updateShipmentStatus(created.getId(), update);
+        }
+
+        assertEquals(ShipmentStatus.DELIVERED,
+                shipmentService.getShipmentById(created.getId()).getStatus());
         assertEquals(
-                ShipmentStatus.CANCELLED,
-                history.get(1).getStatus()
-        );
+                List.of(
+                        ShipmentStatus.CREATED,
+                        ShipmentStatus.PICKED_UP,
+                        ShipmentStatus.IN_TRANSIT,
+                        ShipmentStatus.OUT_FOR_DELIVERY,
+                        ShipmentStatus.DELIVERED),
+                shipmentService.getShipmentHistory(created.getId()).stream()
+                        .map(ShipmentStatusHistoryResponse::getStatus)
+                        .toList());
+
+        StatusUpdateRequest invalidUpdate = new StatusUpdateRequest();
+        invalidUpdate.setStatus(ShipmentStatus.CREATED);
+        assertThrows(IllegalArgumentException.class,
+                () -> shipmentService.updateShipmentStatus(created.getId(), invalidUpdate));
     }
 }

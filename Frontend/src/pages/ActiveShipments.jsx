@@ -161,8 +161,6 @@ function ActiveShipments() {
               shipment.trackingId ||
               shipment.id;
 
-            const status = String(shipment.status || "").toUpperCase();
-
             return (
               <div
                 className="shipment-module-card"

@@ -247,9 +247,6 @@ function OperatorETADelays() {
                         route.destinationLongitude
                       ),
                     },
-                    trafficCondition: "MODERATE",
-                    weatherDelayHours: 0.25,
-                    routeChangeDelayHours: 0.10,
                   }),
                 }
               );
@@ -260,7 +257,7 @@ function OperatorETADelays() {
                 eta,
                 etaAvailable: true,
               };
-            } catch (err) {
+            } catch {
               /*
                * No fake ETA is created when route/location/ETA data
                * is unavailable.

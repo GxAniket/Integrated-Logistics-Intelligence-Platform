@@ -4,6 +4,46 @@ import { apiRequest } from "../../api";
 import LogisticsOperatorSidebar from "../../components/LogisticsOperatorSidebar";
 import "./OperatorDashboard.css";
 
+function getAddress(value) {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    return (
+      value.address ||
+      value.city ||
+      value.locationName ||
+      value.name ||
+      ""
+    );
+  }
+
+  return "";
+}
+
+function getSenderAddress(shipment) {
+  return (
+    getAddress(shipment?.senderAddress) ||
+    getAddress(shipment?.sender?.address) ||
+    shipment?.senderLocation ||
+    shipment?.senderCity ||
+    ""
+  );
+}
+
+function getReceiverAddress(shipment) {
+  return (
+    getAddress(shipment?.receiverAddress) ||
+    getAddress(shipment?.receiver?.address) ||
+    shipment?.receiverLocation ||
+    shipment?.receiverCity ||
+    ""
+  );
+}
+
 function OperatorDashboard() {
   const [shipments, setShipments] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -192,46 +232,6 @@ function OperatorDashboard() {
     return "transit-status";
   };
 
-  const getAddress = (value) => {
-    if (!value) return "";
-
-    if (typeof value === "string") {
-      return value;
-    }
-
-    if (typeof value === "object") {
-      return (
-        value.address ||
-        value.city ||
-        value.locationName ||
-        value.name ||
-        ""
-      );
-    }
-
-    return "";
-  };
-
- const getSenderAddress = (shipment) => {
-  return (
-    getAddress(shipment?.senderAddress) ||
-    getAddress(shipment?.sender?.address) ||
-    shipment?.senderLocation ||
-    shipment?.senderCity ||
-    ""
-  );
-};
-
-  const getReceiverAddress = (shipment) => {
-  return (
-    getAddress(shipment?.receiverAddress) ||
-    getAddress(shipment?.receiver?.address) ||
-    shipment?.receiverLocation ||
-    shipment?.receiverCity ||
-    ""
-  );
-};
-
   const getRouteText = (shipment) => {
     const route =
       shipment?.route ||
@@ -354,8 +354,7 @@ function OperatorDashboard() {
   }, [shipments]);
 
   /*
-   * Calculate a simple overview percentage from actual
-   * shipment statuses instead of using the old dummy 67%.
+   * Calculate a simple overview percentage from actual shipment statuses.
    */
   const onRoutePercentage = useMemo(() => {
     if (shipments.length === 0) return 0;
@@ -526,7 +525,7 @@ function OperatorDashboard() {
               <span>Active Shipments</span>
 
               <strong>
-                {loading ? "..." : activeShipments.length}
+                {loading ? "..." : error ? "—" : activeShipments.length}
               </strong>
 
               <small>
@@ -547,7 +546,7 @@ function OperatorDashboard() {
               <span>Live Deliveries</span>
 
               <strong>
-                {loading ? "..." : inTransitCount}
+                {loading ? "..." : error ? "—" : inTransitCount}
               </strong>
 
               <small>
@@ -565,10 +564,10 @@ function OperatorDashboard() {
             </div>
 
             <div>
-              <span>Active Shipments</span>
+              <span>In Transit</span>
 
               <strong>
-                {loading ? "..." : inTransitCount}
+                {loading ? "..." : error ? "—" : inTransitCount}
               </strong>
 
               <small>
@@ -589,7 +588,11 @@ function OperatorDashboard() {
               <span>Delayed Shipments</span>
 
               <strong>
-                {loading ? "..." : String(delayedCount).padStart(2, "0")}
+                {loading
+                  ? "..."
+                  : error
+                    ? "—"
+                    : String(delayedCount).padStart(2, "0")}
               </strong>
 
               <small>
@@ -839,6 +842,13 @@ function OperatorDashboard() {
                   <tr>
                     <td colSpan="6">
                       Loading shipments...
+                    </td>
+                  </tr>
+
+                ) : error ? (
+                  <tr>
+                    <td colSpan="6">
+                      Shipment data is unavailable. Check the connection and try again.
                     </td>
                   </tr>
 

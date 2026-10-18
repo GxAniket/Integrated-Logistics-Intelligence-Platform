@@ -12,6 +12,7 @@ function CreateShipment() {
   const [operators, setOperators] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState("");
   const [operatorLoadError, setOperatorLoadError] = useState("");
   const [customerLoadError, setCustomerLoadError] = useState("");
   const [shipmentLoading, setShipmentLoading] = useState(Boolean(editingId));
@@ -28,21 +29,11 @@ function CreateShipment() {
     referenceId: "",
     senderName: "",
     senderPhone: "",
-    senderEmail: "",
     senderAddress: "",
-    senderCity: "",
-    senderState: "",
-    senderPincode: "",
-
     receiverName: "",
     receiverPhone: "",
-    receiverEmail: "",
     receiverAddress: "",
-    receiverCity: "",
-    receiverState: "",
-    receiverPincode: "",
-
-    packageType: "Box",
+    packageType: "",
     weight: "",
     quantity: "1",
     customerId: "",
@@ -68,7 +59,7 @@ function CreateShipment() {
         setUser(userResult.value);
       } else {
         console.error("Load business profile error:", userResult.reason);
-        setOperatorLoadError(
+        setProfileLoadError(
           `Unable to load business profile: ${userResult.reason.message}`
         );
       }
@@ -199,11 +190,13 @@ function CreateShipment() {
         return;
       }
 
-      const selectedCustomer = customers.find(
-        (customer) => String(customer.id) === String(formData.customerId)
-      );
-      if (!selectedCustomer) {
-        setMessage("Error: Select a Customer account.");
+      const selectedCustomer = formData.customerId
+        ? customers.find(
+            (customer) => String(customer.id) === String(formData.customerId)
+          )
+        : null;
+      if (formData.customerId && !selectedCustomer) {
+        setMessage("Error: Select a valid Customer account.");
         return;
       }
 
@@ -229,7 +222,7 @@ function CreateShipment() {
           : `${formData.packageType.trim()} x${formData.quantity}`,
         packageWeightKg:
           formData.weight === "" ? null : Number(formData.weight),
-        customerId: Number(selectedCustomer.id),
+        customerId: selectedCustomer ? Number(selectedCustomer.id) : null,
       };
 
       const data = await apiRequest(
@@ -307,20 +300,29 @@ function CreateShipment() {
         {/* SUCCESS MESSAGE */}
 
         {message && (
-          <div className="create-success">
-            <span>✓</span>
+          <div
+            className={`create-success ${message.startsWith("Error:") ? "create-error" : ""}`}
+            role={message.startsWith("Error:") ? "alert" : "status"}
+          >
+            <span>{message.startsWith("Error:") ? "!" : "✓"}</span>
             {message}
           </div>
         )}
 
+        {profileLoadError && (
+          <div className="create-success create-error" role="alert">
+            {profileLoadError}
+          </div>
+        )}
+
         {operatorLoadError && (
-          <div className="create-success">
+          <div className="create-success create-error" role="alert">
             {operatorLoadError}
           </div>
         )}
 
         {customerLoadError && (
-          <div className="create-success">
+          <div className="create-success create-error" role="alert">
             {customerLoadError}
           </div>
         )}
@@ -371,7 +373,7 @@ function CreateShipment() {
                   name="referenceId"
                   value={formData.referenceId}
                   onChange={handleChange}
-                  placeholder="e.g. ORD-2026-001"
+                  placeholder="Enter reference or order ID"
                   required
                 />
 
@@ -438,7 +440,7 @@ function CreateShipment() {
                   name="senderPhone"
                   value={formData.senderPhone}
                   onChange={handleChange}
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter sender phone number"
                   required
                 />
 
@@ -523,7 +525,7 @@ function CreateShipment() {
                   name="receiverPhone"
                   value={formData.receiverPhone}
                   onChange={handleChange}
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter receiver phone number"
                   required
                 />
 
@@ -624,7 +626,7 @@ function CreateShipment() {
                   name="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="e.g. 5.5"
+                  placeholder="Enter package weight"
                 />
 
               </div>
@@ -647,10 +649,10 @@ function CreateShipment() {
                 <span>ASSIGNMENT</span>
 
                 <h2>
-                  Logistics Operator
+                  Shipment Assignment
                 </h2>
 
-                <p>Assign a customer account and an operator to this shipment.</p>
+                <p>Optionally assign a customer account or logistics operator.</p>
               </div>
 
             </div>
@@ -659,8 +661,7 @@ function CreateShipment() {
 
               <div className="form-field">
                 <label htmlFor="customerId">
-                  Assign Customer Account
-                  <span>*</span>
+                  Assign Customer Account (optional)
                 </label>
 
                 <select
@@ -668,7 +669,6 @@ function CreateShipment() {
                   name="customerId"
                   value={formData.customerId}
                   onChange={handleChange}
-                  required
                   disabled={
                     customersLoading ||
                     customerLoadError !== "" ||
@@ -747,9 +747,11 @@ function CreateShipment() {
             <button
               type="submit"
               className="submit-shipment-btn"
-              disabled={isSubmitting || shipmentLoading || !user}
+              disabled={
+                isSubmitting || shipmentLoading || !user || Boolean(profileLoadError)
+              }
               style={
-                isSubmitting || shipmentLoading || !user
+                isSubmitting || shipmentLoading || !user || profileLoadError
                   ? {
                       opacity: 0.7,
                       cursor: "not-allowed",

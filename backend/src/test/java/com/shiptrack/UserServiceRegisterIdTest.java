@@ -87,6 +87,10 @@ void setUp() {
         UserDto response = userService.registerUser(request);
 
         assertNull(response.getRegisterId(), "Only BUSINESS_CLIENT accounts should receive a registerId");
+        assertNotNull(
+                userRepository.findByEmail("customer-noregid@shiptrack.com").orElseThrow().getUserCode(),
+                "New users should receive the legacy database user_code"
+        );
     }
 
     @Test
@@ -99,7 +103,11 @@ void setUp() {
         request.setRole(Role.CUSTOMER);
         request.setPhoneNumber("7777777777");
 
-        assertThrows(IllegalArgumentException.class, () -> userService.registerUser(request));
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.registerUser(request)
+        );
+        assertEquals("Password and confirm password do not match", exception.getMessage());
     }
 
     @Test

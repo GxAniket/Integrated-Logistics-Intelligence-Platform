@@ -861,10 +861,10 @@ function AdminDashboard() {
 
                 </div>
 
-                <button className="admin-outline-btn">
-                  Manage Users
+                <Link to="/register" className="admin-outline-btn">
+                  Create Admin/Support Account
                   <ArrowRight size={13} />
-                </button>
+                </Link>
 
               </div>
 

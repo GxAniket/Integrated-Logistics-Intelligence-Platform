@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface UserService {
     UserDto registerUser(RegisterRequest request);
+    UserDto createPrivilegedUser(RegisterRequest request);
     UserDto getCurrentUser();
     List<UserDto> getAllUsers();
     List<UserDto> getLogisticsOperators();

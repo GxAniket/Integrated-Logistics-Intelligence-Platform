@@ -14,7 +14,7 @@ import {
   MapPin,
 } from "lucide-react";
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
 import "./Register.css";
@@ -22,6 +22,21 @@ import { apiRequest } from "../api";
 
 function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const currentUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("shiptrackUser") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const canCreatePrivilegedAccount =
+    Boolean(localStorage.getItem("shiptrackToken")) &&
+    currentUser?.role === "ADMINISTRATOR";
+  const initialRole =
+    !canCreatePrivilegedAccount && searchParams.get("role") === "business"
+      ? "business"
+      : "";
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -35,7 +50,7 @@ function Register() {
     mobile: "",
     password: "",
     confirmPassword: "",
-    role: "",
+    role: initialRole,
 
     // Address
     address: "",
@@ -463,12 +478,16 @@ function Register() {
     // ROLE MAP
     // -------------------------------------------------------
 
-    const roleMap = {
-      customer: "CUSTOMER",
-      business: "BUSINESS_CLIENT",
-      operator: "LOGISTICS_OPERATOR",
-      support: "SUPPORT_AGENT",
-    };
+    const roleMap = canCreatePrivilegedAccount
+      ? {
+          administrator: "ADMINISTRATOR",
+          support: "SUPPORT_AGENT",
+        }
+      : {
+          customer: "CUSTOMER",
+          business: "BUSINESS_CLIENT",
+          operator: "LOGISTICS_OPERATOR",
+        };
 
     const backendRole = roleMap[role];
 
@@ -522,60 +541,64 @@ function Register() {
 
     setIsSubmitting(true);
     try {
-      await apiRequest("/api/auth/register", {
-        method: "POST",
+      const creatingPrivilegedAccount =
+        role === "administrator" || role === "support";
+      await apiRequest(
+        creatingPrivilegedAccount
+          ? "/api/users/privileged"
+          : "/api/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            // Common
+            firstName,
+            lastName,
+            fullName: `${firstName} ${lastName}`,
+            email,
+            password,
+            confirmPassword,
+            role: backendRole,
+            phoneNumber: mobile,
 
-        body: JSON.stringify({
-          // Common
-          firstName,
-          lastName,
-          fullName: `${firstName} ${lastName}`,
-          email,
-          password,
-          confirmPassword,
-          role: backendRole,
-          phoneNumber: mobile,
+            // Address
+            address: formData.address.trim(),
+            city: formData.city.trim(),
+            state: formData.state.trim(),
+            country: formData.country.trim(),
+            postalCode: formData.postalCode.trim(),
 
-          // Address
-          address: formData.address.trim(),
-          city: formData.city.trim(),
-          state: formData.state.trim(),
-          country: formData.country.trim(),
-          postalCode: formData.postalCode.trim(),
+            // Business Client
+            companyName: formData.companyName.trim(),
+            registrationNumber: formData.registrationNumber.trim(),
+            gstTaxId: formData.gstTaxId.trim(),
+            contactPersonName: formData.contactPersonName.trim(),
 
-          // Business Client
-          companyName: formData.companyName.trim(),
-          registrationNumber:
-            formData.registrationNumber.trim(),
-          gstTaxId: formData.gstTaxId.trim(),
-          contactPersonName:
-            formData.contactPersonName.trim(),
+            // Logistics Operator
+            organizationName: formData.organizationName.trim(),
+            licenseRegistrationNumber:
+              formData.licenseRegistrationNumber.trim(),
+            transportationMode: formData.transportationMode,
+            operatingArea: formData.operatingArea.trim(),
 
-          // Logistics Operator
-          organizationName:
-            formData.organizationName.trim(),
-          licenseRegistrationNumber:
-            formData.licenseRegistrationNumber.trim(),
-          transportationMode:
-            formData.transportationMode,
-          operatingArea:
-            formData.operatingArea.trim(),
-
-          // Support Agent
-          employeeId: formData.employeeId.trim(),
-          department: formData.department.trim(),
-        }),
-      });
-
-      // Remove old login session
-      localStorage.removeItem("shiptrackToken");
-      localStorage.removeItem("shiptrackUser");
-
-      alert(
-        "Registration successful! Please login to continue."
+            // Support Agent
+            employeeId: formData.employeeId.trim(),
+            department: formData.department.trim(),
+          }),
+        }
       );
 
-      navigate("/login");
+      if (!creatingPrivilegedAccount) {
+        localStorage.removeItem("shiptrackToken");
+        localStorage.removeItem("shiptrackUser");
+      }
+
+      alert(
+        creatingPrivilegedAccount
+          ? `${backendRole === "ADMINISTRATOR" ? "Administrator" : "Support Agent"} account created successfully.`
+          : "Registration successful! Please login to continue."
+      );
+
+      navigate(creatingPrivilegedAccount ? "/dashboard/admin" : "/login");
     } catch (error) {
       console.error("Registration error:", error);
 
@@ -699,7 +722,11 @@ function Register() {
             </div>
 
             <div>
-              <h2>Create account</h2>
+              <h2>
+                {canCreatePrivilegedAccount
+                  ? "Create privileged account"
+                  : "Create account"}
+              </h2>
 
               <p>
                 Register your ShipTrack Pro account
@@ -889,21 +916,32 @@ function Register() {
       Select your role
     </option>
 
-    <option value="customer">
-      Customer
-    </option>
+    {canCreatePrivilegedAccount && (
+      <option value="administrator">
+        Administrator
+      </option>
+    )}
+    {canCreatePrivilegedAccount && (
+      <option value="support">
+        Support Agent
+      </option>
+    )}
+    {!canCreatePrivilegedAccount && (
+      <>
+        <option value="customer">
+          Customer
+        </option>
 
-    <option value="business">
-      Business Client
-    </option>
+        <option value="business">
+          Business Client
+        </option>
 
-    <option value="operator">
-      Logistics Operator
-    </option>
+        <option value="operator">
+          Logistics Operator
+        </option>
 
-    <option value="support">
-      Support Agent
-    </option>
+      </>
+    )}
 </select>
 </div>
 </div>

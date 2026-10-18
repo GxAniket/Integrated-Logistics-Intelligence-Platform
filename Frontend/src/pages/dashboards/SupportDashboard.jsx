@@ -52,7 +52,6 @@ const REPORT_COLUMNS = [
   { header: "Created At", key: "createdAt", width: 22 },
   { header: "Updated At", key: "updatedAt", width: 22 },
   { header: "Predicted Delivery", key: "predictedDeliveryTime", width: 24 },
-  { header: "Forecast Confidence", key: "forecastConfidence", width: 22 },
 ];
 
 function createReportRow(shipment, forecast) {
@@ -66,7 +65,6 @@ function createReportRow(shipment, forecast) {
     createdAt: shipment.createdAt ?? "",
     updatedAt: shipment.updatedAt ?? "",
     predictedDeliveryTime: forecast?.predictedDeliveryTime ?? "",
-    forecastConfidence: forecast?.confidence ?? "",
   };
 }
 
@@ -675,7 +673,6 @@ function SupportDashboard() {
             { header: "Tracking Number", key: "trackingNumber", width: 24 },
             { header: "Predicted Delivery Time", key: "predictedDeliveryTime", width: 26 },
             { header: "Predicted Status", key: "predictedStatus", width: 22 },
-            { header: "Confidence", key: "confidence", width: 16 },
             { header: "Forecast Created At", key: "createdAt", width: 24 },
           ],
           rows: forecasts.map((forecast) => {
@@ -690,7 +687,6 @@ function SupportDashboard() {
               "",
             predictedDeliveryTime: forecast?.predictedDeliveryTime ?? "",
             predictedStatus: forecast?.predictedStatus ?? "",
-            confidence: forecast?.confidence ?? "",
             createdAt: forecast?.createdAt ?? "",
           };
           }),

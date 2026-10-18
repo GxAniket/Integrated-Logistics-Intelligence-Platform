@@ -23,8 +23,8 @@ public class Forecast {
     @Column(name = "predicted_delivery_time", nullable = false)
     private LocalDateTime predictedDeliveryTime;
 
-    @Column(nullable = false)
-    private double confidence;
+    @Column(nullable = true)
+    private Double confidence;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "predicted_status", nullable = false)
@@ -56,11 +56,11 @@ public class Forecast {
         this.predictedDeliveryTime = predictedDeliveryTime;
     }
 
-    public double getConfidence() {
+    public Double getConfidence() {
         return confidence;
     }
 
-    public void setConfidence(double confidence) {
+    public void setConfidence(Double confidence) {
         this.confidence = confidence;
     }
 

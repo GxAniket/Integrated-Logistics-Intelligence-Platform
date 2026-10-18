@@ -46,56 +46,25 @@ public class ForecastService {
         Route route = routeRepository.findByShipmentId(shipmentId)
                 .orElse(null);
 
-        LocalDateTime predictedDeliveryTime;
-        double confidence;
-
-        /*
-         * If a route exists with an estimated duration,
-         * use that duration to calculate the forecast.
-         */
-        if (route != null
-                && route.getEstimatedDurationMinutes() != null
-                && route.getEstimatedDurationMinutes() > 0) {
-
-            predictedDeliveryTime = LocalDateTime.now()
-                    .plusMinutes(route.getEstimatedDurationMinutes());
-
-            confidence = 0.75;
-
-        } else {
-
-            /*
-             * Fallback when no route information is available.
-             */
-            predictedDeliveryTime = LocalDateTime.now()
-                    .plusDays(1);
-
-            confidence = 0.40;
+        if (shipment.getStatus() == ShipmentStatus.DELIVERED
+                || shipment.getStatus() == ShipmentStatus.CANCELLED
+                || shipment.getStatus() == ShipmentStatus.FAILED_DELIVERY) {
+            throw new IllegalArgumentException(
+                    "A forecast can only be generated for an active shipment.");
         }
 
-        /*
-         * Adjust forecast according to current shipment status.
-         */
-        if (shipment.getStatus() == ShipmentStatus.DELIVERED) {
-
-            predictedDeliveryTime = LocalDateTime.now();
-            confidence = 0.99;
-
-        } else if (shipment.getStatus() == ShipmentStatus.OUT_FOR_DELIVERY) {
-
-            predictedDeliveryTime = LocalDateTime.now()
-                    .plusHours(4);
-
-            confidence = Math.max(confidence, 0.70);
+        if (route == null
+                || route.getEstimatedDurationMinutes() == null
+                || route.getEstimatedDurationMinutes() <= 0) {
+            throw new IllegalArgumentException(
+                    "A saved route with a valid estimated duration is required to generate a forecast.");
         }
 
         Forecast forecast = new Forecast();
 
         forecast.setShipment(shipment);
-        forecast.setPredictedDeliveryTime(predictedDeliveryTime);
-        forecast.setConfidence(
-                Math.max(0.0, Math.min(1.0, confidence))
-        );
+        forecast.setPredictedDeliveryTime(
+                LocalDateTime.now().plusMinutes(route.getEstimatedDurationMinutes()));
         forecast.setPredictedStatus(shipment.getStatus());
 
         return forecastRepository.save(forecast);

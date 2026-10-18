@@ -1,6 +1,7 @@
 package com.shiptrack;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shiptrack.entity.Route;
 import com.shiptrack.entity.Shipment;
 import com.shiptrack.entity.ShipmentStatusHistory;
@@ -29,13 +30,17 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
@@ -69,6 +74,280 @@ class ShipmentReportingApiIntegrationTest {
 
     @MockitoBean
     private MapsService mapsService;
+
+    @Test
+    void protectedEndpointsRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/shipments"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void invalidLoginCredentialsReturnUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"missing-user@example.invalid","password":"invalid"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password."));
+    }
+
+    @Test
+    void registrationLoginShipmentAssignmentUpdateLifecycleAndHistoryWorkEndToEnd()
+            throws Exception {
+        ApiUser businessClient = registerAndLogin("e2e-business", Role.BUSINESS_CLIENT);
+        ApiUser operator = registerAndLogin("e2e-operator", Role.LOGISTICS_OPERATOR);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "fullName", "Unauthorized Admin",
+                                "email", "e2e-admin-" + UUID.randomUUID() + "@shiptrack.test",
+                                "password", "test-password",
+                                "role", Role.ADMINISTRATOR.name()))))
+                .andExpect(status().isBadRequest());
+
+        Map<String, Object> shipmentRequest = shipmentRequest(
+                operator.id(), "E2E original origin");
+        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/api/shipments")
+                        .header("Authorization", businessClient.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(shipmentRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(ShipmentStatus.CREATED.name()))
+                .andReturn().getResponse().getContentAsString());
+        long shipmentId = created.get("id").asLong();
+
+        mockMvc.perform(get("/api/shipments")
+                        .header("Authorization", operator.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(shipmentId))
+                .andExpect(jsonPath("$[0].assignedOperatorId").value(operator.id()));
+
+        mockMvc.perform(get("/api/shipments")
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].trackingNumber")
+                        .value(created.get("trackingNumber").asText()));
+
+        Map<String, Object> editRequest = shipmentRequest(
+                operator.id(), "E2E updated origin");
+        mockMvc.perform(put("/api/shipments/{id}", shipmentId)
+                        .header("Authorization", businessClient.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(editRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.senderAddress").value("E2E updated origin"));
+
+        for (ShipmentStatus nextStatus : List.of(
+                ShipmentStatus.PICKED_UP,
+                ShipmentStatus.IN_TRANSIT,
+                ShipmentStatus.OUT_FOR_DELIVERY,
+                ShipmentStatus.DELIVERED)) {
+            mockMvc.perform(patch("/api/shipments/{id}/status", shipmentId)
+                            .header("Authorization", operator.bearerToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "status", nextStatus.name(),
+                                    "remarks", "End-to-end " + nextStatus.name()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value(nextStatus.name()));
+        }
+
+        mockMvc.perform(get("/api/shipments/{id}/history", shipmentId)
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$[0].status").value(ShipmentStatus.CREATED.name()))
+                .andExpect(jsonPath("$[4].status").value(ShipmentStatus.DELIVERED.name()));
+
+        mockMvc.perform(patch("/api/shipments/{id}/status", shipmentId)
+                        .header("Authorization", operator.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CREATED","remarks":"Invalid backward transition"}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(patch("/api/shipments/{id}/cancel", shipmentId)
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isBadRequest());
+
+        User admin = user("e2e-admin", Role.ADMINISTRATOR);
+        String adminToken = "Bearer " + jwtUtils.generateToken(
+                admin.getId(), admin.getEmail(), admin.getRole().name());
+        mockMvc.perform(post("/api/users/privileged")
+                        .header("Authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "fullName", "E2E Support Agent",
+                                "email", "e2e-support-" + UUID.randomUUID() + "@shiptrack.test",
+                                "password", "test-password",
+                                "role", Role.SUPPORT_AGENT.name()))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value(Role.SUPPORT_AGENT.name()));
+    }
+
+    @Test
+    void allRolesCanUseTheirPersistedShipmentAndTrackingWorkflowsEndToEnd()
+            throws Exception {
+        ApiUser businessClient = registerAndLogin("role-matrix-business", Role.BUSINESS_CLIENT);
+        ApiUser operator = registerAndLogin("role-matrix-operator", Role.LOGISTICS_OPERATOR);
+        ApiUser customer = registerAndLogin("role-matrix-customer", Role.CUSTOMER);
+        User adminUser = user("role-matrix-admin", Role.ADMINISTRATOR);
+        User supportUser = user("role-matrix-support", Role.SUPPORT_AGENT);
+
+        String adminToken = "Bearer " + jwtUtils.generateToken(
+                adminUser.getId(), adminUser.getEmail(), adminUser.getRole().name());
+        String supportToken = "Bearer " + jwtUtils.generateToken(
+                supportUser.getId(), supportUser.getEmail(), supportUser.getRole().name());
+
+        Map<String, Object> request = new java.util.HashMap<>(
+                shipmentRequest(operator.id(), "Role matrix origin"));
+        request.put("customerId", customer.id());
+
+        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/api/shipments")
+                        .header("Authorization", businessClient.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(ShipmentStatus.CREATED.name()))
+                .andExpect(jsonPath("$.customerId").value(customer.id()))
+                .andExpect(jsonPath("$.assignedOperatorId").value(operator.id()))
+                .andReturn().getResponse().getContentAsString());
+        long shipmentId = created.get("id").asLong();
+        String trackingNumber = created.get("trackingNumber").asText();
+
+        when(mapsService.geocode("Role matrix origin"))
+                .thenReturn(new MapsService.Coordinates(17.3850, 78.4867));
+        when(mapsService.geocode("E2E destination"))
+                .thenReturn(new MapsService.Coordinates(17.3860, 78.4875));
+        when(mapsService.route(any(MapsService.Coordinates.class),
+                any(MapsService.Coordinates.class)))
+                .thenReturn(new MapsService.RouteData(
+                        1200,
+                        90,
+                        "{\"type\":\"LineString\",\"coordinates\":[[78.4867,17.385],[78.4875,17.386]]}"));
+
+        mockMvc.perform(post("/api/routes/shipment/{shipmentId}/calculate", shipmentId)
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shipmentId").value(shipmentId))
+                .andExpect(jsonPath("$.estimatedDurationMinutes").value(2));
+
+        mockMvc.perform(post("/api/forecasts/generate")
+                        .param("shipmentId", String.valueOf(shipmentId))
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shipment.id").value(shipmentId))
+                .andExpect(jsonPath("$.predictedDeliveryTime").isNotEmpty())
+                .andExpect(jsonPath("$.confidence").doesNotExist());
+
+        mockMvc.perform(patch("/api/shipments/{id}/location", shipmentId)
+                        .header("Authorization", operator.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"latitude":17.385,"longitude":78.4867,"locationName":"Test origin"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latitude").value(17.385))
+                .andExpect(jsonPath("$.longitude").value(78.4867));
+
+        for (ShipmentStatus nextStatus : List.of(
+                ShipmentStatus.PICKED_UP,
+                ShipmentStatus.IN_TRANSIT,
+                ShipmentStatus.OUT_FOR_DELIVERY)) {
+            mockMvc.perform(patch("/api/shipments/{id}/status", shipmentId)
+                            .header("Authorization", operator.bearerToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "status", nextStatus.name(),
+                                    "remarks", "Role matrix " + nextStatus.name()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value(nextStatus.name()));
+        }
+
+        String[] roleTokens = {
+                businessClient.bearerToken(),
+                customer.bearerToken(),
+                operator.bearerToken(),
+                supportToken,
+                adminToken
+        };
+
+        for (String roleToken : roleTokens) {
+            mockMvc.perform(get("/api/users/me")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk());
+            mockMvc.perform(get("/api/shipments")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].trackingNumber").value(trackingNumber));
+            mockMvc.perform(get("/api/shipments/track/{trackingNumber}", trackingNumber)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(shipmentId));
+            mockMvc.perform(get("/api/shipments/{id}/tracking", shipmentId)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.currentLocation.latitude").value(17.385));
+            mockMvc.perform(get("/api/shipments/{id}/location-history", shipmentId)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1));
+            mockMvc.perform(get("/api/shipments/{id}/history", shipmentId)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(4));
+            mockMvc.perform(get("/api/routes/shipment/{shipmentId}", shipmentId)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.estimatedDurationMinutes").value(2));
+            mockMvc.perform(get("/api/forecasts/shipment/{shipmentId}", shipmentId)
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1));
+            mockMvc.perform(get("/api/forecasts")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1));
+            mockMvc.perform(get("/api/analytics")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalShipments").value(1))
+                    .andExpect(jsonPath("$.inTransitShipments").value(1));
+            mockMvc.perform(get("/api/reports/performance")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk());
+            mockMvc.perform(get("/api/notifications")
+                            .header("Authorization", roleToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)));
+        }
+
+        mockMvc.perform(post("/api/shipments/{id}/eta", shipmentId)
+                        .header("Authorization", operator.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"destination":{"latitude":17.386,"longitude":78.4875}}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shipmentId").value(shipmentId))
+                .andExpect(jsonPath("$.expectedCompletionTime").isNotEmpty());
+
+        mockMvc.perform(post("/api/shipments/{id}/pod", shipmentId)
+                        .header("Authorization", operator.bearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                podRequest(validPngDataUrl()))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deliveryStatus").value("DELIVERED"));
+
+        mockMvc.perform(get("/api/shipments/{id}/pod", shipmentId)
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shipmentId").value(shipmentId));
+    }
 
     @Test
     void analyticsReportsAndPodConfirmationUsePersistedShipmentData() throws Exception {
@@ -251,6 +530,52 @@ class ShipmentReportingApiIntegrationTest {
         user.setRole(role);
         return userRepository.saveAndFlush(user);
     }
+
+    private ApiUser registerAndLogin(String prefix, Role role) throws Exception {
+        String email = prefix + "-" + UUID.randomUUID() + "@shiptrack.test";
+        String password = "test-password";
+        String registration = objectMapper.writeValueAsString(Map.of(
+                "fullName", prefix,
+                "email", email,
+                "password", password,
+                "confirmPassword", password,
+                "role", role.name()));
+
+        JsonNode registered = objectMapper.readTree(mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+
+        JsonNode login = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email,
+                                "password", password))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value(role.name()))
+                .andReturn().getResponse().getContentAsString());
+
+        return new ApiUser(
+                registered.get("id").asLong(),
+                "Bearer " + login.get("token").asText());
+    }
+
+    private Map<String, Object> shipmentRequest(long operatorId, String origin) {
+        return Map.of(
+                "referenceId", "E2E-" + UUID.randomUUID(),
+                "senderName", "E2E Sender",
+                "senderPhone", "1111111111",
+                "senderAddress", origin,
+                "receiverName", "E2E Receiver",
+                "receiverPhone", "2222222222",
+                "receiverAddress", "E2E destination",
+                "packageDescription", "Test parcel",
+                "packageWeightKg", 2.5,
+                "assignedOperatorId", operatorId);
+    }
+
+    private record ApiUser(long id, String bearerToken) {}
 
     private Shipment shipment(
             User businessClient,

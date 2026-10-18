@@ -17,13 +17,6 @@ function formatHours(value) {
     : "Data unavailable";
 }
 
-function formatConfidence(value) {
-  const confidence = Number(value);
-  if (!Number.isFinite(confidence)) return "";
-  const percent = confidence <= 1 ? confidence * 100 : confidence;
-  return ` (${Math.round(percent)}% confidence)`;
-}
-
 function BusinessTracking() {
   const [searchParams] = useSearchParams();
 
@@ -131,7 +124,11 @@ function BusinessTracking() {
         let forecasts = forecastResult.status === "fulfilled" &&
           Array.isArray(forecastResult.value) ? forecastResult.value : [];
         let forecastFailed = false;
-        if (forecasts.length === 0) {
+        if (
+          forecasts.length === 0 &&
+          !TERMINAL_STATUSES.includes(data.status) &&
+          Number(route?.estimatedDurationMinutes) > 0
+        ) {
           try {
             const forecast = await apiRequest(
               `/api/forecasts/generate?shipmentId=${shipmentId}`,
@@ -679,7 +676,6 @@ function BusinessTracking() {
                     {forecast.predictedDeliveryTime
                       ? new Date(forecast.predictedDeliveryTime).toLocaleString()
                       : ""}
-                    {formatConfidence(forecast.confidence)}
                   </strong>
                 </div>
               ))}

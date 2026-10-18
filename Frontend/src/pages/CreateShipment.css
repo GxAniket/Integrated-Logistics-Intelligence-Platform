@@ -357,6 +357,15 @@
   background: rgba(66,216,161,0.14);
 }
 
+.create-error {
+  border-color: rgba(255, 95, 95, 0.28);
+  background: rgba(255, 95, 95, 0.08);
+  color: #ff8b8b;
+}
+
+.create-error span {
+  background: rgba(255, 95, 95, 0.14);
+}
 
 /* =========================================
    FORM SECTION

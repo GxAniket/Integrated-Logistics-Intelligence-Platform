@@ -705,7 +705,7 @@ function CustomerDashboard() {
             </div>
 
             <h2>
-              {metrics.active}
+              {error ? "—" : metrics.active}
             </h2>
 
             <p>
@@ -732,7 +732,7 @@ function CustomerDashboard() {
             </div>
 
             <h2>
-              {metrics.inTransit}
+              {error ? "—" : metrics.inTransit}
             </h2>
 
             <p>
@@ -759,7 +759,7 @@ function CustomerDashboard() {
             </div>
 
             <h2>
-              {metrics.delivered}
+              {error ? "—" : metrics.delivered}
             </h2>
 
             <p>
@@ -1153,7 +1153,7 @@ function CustomerDashboard() {
               <div className="chart-number">
 
                 <strong>
-                  {metrics.total}
+                  {error ? "—" : metrics.total}
                 </strong>
 
                 <span>

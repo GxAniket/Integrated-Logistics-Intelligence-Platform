@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import "./App.css";
 
 // =========================================================
@@ -72,6 +79,7 @@ const DASHBOARD_BY_ROLE = {
 
 function RequireRole({ role }) {
   const token = localStorage.getItem("shiptrackToken");
+  const location = useLocation();
   let user;
 
   try {
@@ -81,7 +89,7 @@ function RequireRole({ role }) {
   }
 
   if (!token || !user?.role) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (user.role !== role) {

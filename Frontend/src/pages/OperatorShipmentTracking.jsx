@@ -101,6 +101,17 @@ function OperatorShipmentTracking() {
       .replaceAll("_", "-");
   };
 
+  const getAllowedStatusOptions = (status) => {
+    const allowedStatuses = {
+      CREATED: ["PICKED_UP"],
+      PICKED_UP: ["IN_TRANSIT"],
+      IN_TRANSIT: ["OUT_FOR_DELIVERY"],
+      OUT_FOR_DELIVERY: ["DELIVERED", "FAILED_DELIVERY"],
+      FAILED_DELIVERY: ["OUT_FOR_DELIVERY"],
+    };
+    return allowedStatuses[normalizeStatus(status)] || [];
+  };
+
   const getProgress = (status) => {
     switch (normalizeStatus(status)) {
       case "CREATED":
@@ -255,9 +266,12 @@ function OperatorShipmentTracking() {
       return;
     }
 
+    const allowedStatuses = getAllowedStatusOptions(shipment.status);
+    if (allowedStatuses.length === 0) return;
+
     setSelectedShipment(shipment);
     setStatusForm({
-      status: normalizeStatus(shipment.status) || "CREATED",
+      status: allowedStatuses[0],
       remarks: "",
     });
     setError("");
@@ -834,7 +848,14 @@ function OperatorShipmentTracking() {
                                   width: "32px",
                                   height: "32px",
                                 }}
-                                title="Update status"
+                                title={
+                                  getAllowedStatusOptions(shipment?.status).length
+                                    ? "Update status"
+                                    : "This shipment has no further status transitions"
+                                }
+                                disabled={
+                                  getAllowedStatusOptions(shipment?.status).length === 0
+                                }
                                 aria-label={`Update status for ${
                                   shipment?.trackingNumber ||
                                   `shipment ${shipment?.id}`
@@ -1024,7 +1045,9 @@ function OperatorShipmentTracking() {
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   >
-                    {STATUS_OPTIONS.map((status) => (
+                    {STATUS_OPTIONS.filter((status) =>
+                      getAllowedStatusOptions(selectedShipment.status).includes(status)
+                    ).map((status) => (
                       <option key={status} value={status}>
                         {getDisplayStatus(status)}
                       </option>

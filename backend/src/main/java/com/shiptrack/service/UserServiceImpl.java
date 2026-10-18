@@ -44,6 +44,26 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto registerUser(RegisterRequest request) {
+        if (request != null &&
+                (request.getRole() == Role.ADMINISTRATOR || request.getRole() == Role.SUPPORT_AGENT)) {
+            throw new IllegalArgumentException("Administrator and support accounts can only be created by an existing administrator.");
+        }
+        return createUser(request, request == null ? null : request.getRole());
+    }
+
+    @Override
+    public UserDto createPrivilegedUser(RegisterRequest request) {
+        if (request == null ||
+                (request.getRole() != Role.ADMINISTRATOR && request.getRole() != Role.SUPPORT_AGENT)) {
+            throw new IllegalArgumentException("Only administrator or support accounts can be created through this endpoint.");
+        }
+        return createUser(request, request.getRole());
+    }
+
+    private UserDto createUser(RegisterRequest request, Role role) {
+        if (request == null) {
+            throw new IllegalArgumentException("Registration details are required");
+        }
         if (request.getEmail() == null || request.getEmail().isBlank()) {
             throw new IllegalArgumentException("Email is required");
         }
@@ -53,7 +73,7 @@ public class UserServiceImpl implements UserService {
         if (request.getConfirmPassword() != null && !request.getConfirmPassword().equals(request.getPassword())) {
             throw new IllegalArgumentException("Password and confirm password do not match");
         }
-        if (request.getRole() == null) {
+        if (role == null) {
             throw new IllegalArgumentException("Role is required");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -64,14 +84,14 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.getFullName());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
+        user.setRole(role);
         user.setPhoneNumber(request.getPhoneNumber());
 
         // Only BUSINESS_CLIENT accounts automatically receive a Business Client
         // registerId. The client must never supply this value themselves; it is
         // always generated and persisted by the backend, and returned in the
         // registration response.
-        if (request.getRole() == Role.BUSINESS_CLIENT) {
+        if (role == Role.BUSINESS_CLIENT) {
             user.setRegisterId(generateUniqueRegisterId());
         }
 

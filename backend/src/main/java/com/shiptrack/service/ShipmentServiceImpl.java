@@ -154,6 +154,21 @@ public class ShipmentServiceImpl implements ShipmentService {
         return mapToResponse(shipment);
     }
 
+    private boolean isAllowedStatusTransition(ShipmentStatus current, ShipmentStatus next) {
+        if (current == null || next == null) {
+            return false;
+        }
+        return switch (current) {
+            case CREATED -> next == ShipmentStatus.PICKED_UP;
+            case PICKED_UP -> next == ShipmentStatus.IN_TRANSIT;
+            case IN_TRANSIT -> next == ShipmentStatus.OUT_FOR_DELIVERY;
+            case OUT_FOR_DELIVERY ->
+                    next == ShipmentStatus.DELIVERED || next == ShipmentStatus.FAILED_DELIVERY;
+            case FAILED_DELIVERY -> next == ShipmentStatus.OUT_FOR_DELIVERY;
+            case DELIVERED, CANCELLED -> false;
+        };
+    }
+
     @Override
     public ShipmentResponse getShipmentByTrackingNumber(String trackingNumber) {
         User currentUser = getCurrentUser();
@@ -255,6 +270,10 @@ public class ShipmentServiceImpl implements ShipmentService {
         if (request.getStatus() == null) {
             throw new IllegalArgumentException("Status value is required");
         }
+        if (!isAllowedStatusTransition(shipment.getStatus(), request.getStatus())) {
+            throw new IllegalArgumentException(
+                    "Shipment status cannot move from " + shipment.getStatus() + " to " + request.getStatus());
+        }
 
         shipment.setStatus(request.getStatus());
         Shipment savedShipment = shipmentRepository.save(shipment);
@@ -284,6 +303,10 @@ public class ShipmentServiceImpl implements ShipmentService {
             if (currentUser.getRole() != Role.BUSINESS_CLIENT || !shipment.getBusinessClient().getId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("You do not have permission to cancel this shipment.");
             }
+        }
+        if (shipment.getStatus() == ShipmentStatus.DELIVERED ||
+                shipment.getStatus() == ShipmentStatus.CANCELLED) {
+            throw new IllegalArgumentException("Delivered or already cancelled shipments cannot be cancelled.");
         }
 
         shipment.setStatus(ShipmentStatus.CANCELLED);

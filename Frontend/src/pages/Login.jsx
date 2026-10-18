@@ -9,8 +9,8 @@ import {
   Truck,
 } from "lucide-react";
 
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 import "./Login.css";
 import { apiRequest } from "../api";
@@ -19,11 +19,11 @@ import { apiRequest } from "../api";
 function Login() {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => {
-    localStorage.removeItem("shiptrackToken");
-    localStorage.removeItem("shiptrackUser");
-  }, []);
+  const [rememberEmail, setRememberEmail] = useState(() =>
+    Boolean(localStorage.getItem("shiptrackRememberedEmail"))
+  );
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +35,7 @@ function Login() {
   const [authMessage, setAuthMessage] = useState(null);
 
   const [formData, setFormData] = useState({
-    email: "",
+    email: localStorage.getItem("shiptrackRememberedEmail") || "",
     password: "",
     role: "",
   });
@@ -69,7 +69,7 @@ function Login() {
     const selectedRole = formData.role;
 
     if (!selectedRole) {
-      alert("Please select your role.");
+      setAuthMessage({ type: "error", text: "Please select your role." });
       return;
     }
 
@@ -84,6 +84,7 @@ function Login() {
     const backendRole = roleMap[selectedRole];
 
     setIsSubmitting(true);
+    setAuthMessage(null);
     try {
       const data = await apiRequest("/api/auth/login", {
         method: "POST",
@@ -94,8 +95,17 @@ function Login() {
       });
 
       if (data.role !== backendRole) {
-        alert(`This account belongs to ${data.role}, not ${backendRole}.`);
+        setAuthMessage({
+          type: "error",
+          text: `This account belongs to ${data.role}, not ${backendRole}.`,
+        });
         return;
+      }
+
+      if (rememberEmail) {
+        localStorage.setItem("shiptrackRememberedEmail", email);
+      } else {
+        localStorage.removeItem("shiptrackRememberedEmail");
       }
 
       localStorage.setItem("shiptrackToken", data.token);
@@ -117,10 +127,19 @@ function Login() {
         ADMINISTRATOR: "/dashboard/admin",
       };
 
-      navigate(routes[data.role] || "/");
+      const destination = location.state?.from;
+      navigate(
+        destination?.pathname
+          ? `${destination.pathname}${destination.search || ""}${destination.hash || ""}`
+          : routes[data.role] || "/",
+        { replace: true }
+      );
     } catch (error) {
       console.error("Login error:", error);
-      alert(error.message || "Unable to connect to backend.");
+      setAuthMessage({
+        type: "error",
+        text: error.message || "Unable to connect to backend.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -373,7 +392,10 @@ function Login() {
           ================================================= */}
 
           {authMessage && (
-            <p className={`auth-message ${authMessage.type}`} role="status">
+            <p
+              className={`auth-message ${authMessage.type}`}
+              role={authMessage.type === "error" ? "alert" : "status"}
+            >
               {authMessage.text}
             </p>
           )}
@@ -584,7 +606,9 @@ function Login() {
                     Support Agent
                   </option>
 
-                 
+                  <option value="admin">
+                    Administrator
+                  </option>
 
                 </select>
 
@@ -601,10 +625,12 @@ function Login() {
 
                 <input
                   type="checkbox"
+                  checked={rememberEmail}
+                  onChange={(event) => setRememberEmail(event.target.checked)}
                 />
 
                 <span>
-                  Remember me
+                  Remember email
                 </span>
 
               </label>

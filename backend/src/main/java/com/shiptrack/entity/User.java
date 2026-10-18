@@ -4,6 +4,7 @@ import com.shiptrack.enums.Role;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -12,6 +13,9 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "user_code", nullable = false, unique = true, length = 30)
+    private String userCode;
 
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
@@ -50,6 +54,9 @@ public class User {
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
+        if (userCode == null || userCode.isBlank()) {
+            userCode = UUID.randomUUID().toString().replace("-", "").substring(0, 30);
+        }
         createdAt = now;
         updatedAt = now;
     }
@@ -68,6 +75,14 @@ public class User {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getUserCode() {
+        return userCode;
+    }
+
+    public void setUserCode(String userCode) {
+        this.userCode = userCode;
     }
 
     public String getFullName() {
@@ -135,7 +150,7 @@ public class User {
     }
 
     public int getPasswordResetOtpAttempts() {
-        return passwordResetOtpAttempts == null ? 0 : passwordResetOtpAttempts;
+        return passwordResetOtpAttempts == null ? 0 : passwordResetOtpAttempts.intValue();
     }
 
     public void setPasswordResetOtpAttempts(int passwordResetOtpAttempts) {
