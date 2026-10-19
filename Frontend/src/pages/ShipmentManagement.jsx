@@ -1,840 +1,594 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import "./ShipmentManagement.css";
+import {
+  ArrowRight,
+  Clock3,
+  MapPin,
+  Package,
+  Search,
+  Truck,
+} from "lucide-react";
+
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
+import "./ShipmentManagement.css";
+
+const ACTIVE_STATUSES = [
+  "CREATED",
+  "PICKED_UP",
+  "IN_TRANSIT",
+  "OUT_FOR_DELIVERY",
+];
+
+function getShipments(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.shipments)) return data.shipments;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function getStatus(shipment) {
+  return String(shipment?.status || "UNKNOWN").toUpperCase();
+}
+
+function getTrackingNumber(shipment) {
+  return shipment?.trackingNumber || "";
+}
+
+function getCustomerName(shipment) {
+  return shipment?.receiverName || "";
+}
+
+function getCustomerPhone(shipment) {
+  return shipment?.receiverPhone || "";
+}
+
+function getOrigin(shipment) {
+  return [shipment?.senderName, shipment?.senderAddress].filter(Boolean).join(" · ");
+}
+
+function getDestination(shipment) {
+  return [shipment?.receiverName, shipment?.receiverAddress].filter(Boolean).join(" · ");
+}
+
+function getStatusClass(status) {
+  switch (status) {
+    case "IN_TRANSIT":
+    case "OUT_FOR_DELIVERY":
+      return "in-transit";
+
+    case "PICKED_UP":
+      return "picked-up";
+
+    case "DELIVERED":
+      return "delivered";
+
+    case "FAILED_DELIVERY":
+    case "CANCELLED":
+      return "delayed";
+
+    default:
+      return "";
+  }
+}
+
+function formatStatus(status) {
+  return String(status || "UNKNOWN")
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getInitials(name) {
+  if (!name) {
+    return "?";
+  }
+
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join("")
+    .toUpperCase();
+}
 
 function ShipmentManagement() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [shipmentData, setShipmentData] = useState([]);
+  const [user, setUser] = useState(null);
+  const [shipments, setShipments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
-  // Logged-in user
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Get currently logged-in user from localStorage
+  async function loadData() {
     try {
-      const storedUser = JSON.parse(
-        localStorage.getItem("shiptrackUser") || "null"
+      setLoading(true);
+      setError("");
+
+      const [userData, shipmentData] = await Promise.all([
+        apiRequest("/api/users/me"),
+        apiRequest("/api/shipments"),
+      ]);
+
+      setUser(userData);
+      setShipments(getShipments(shipmentData));
+    } catch (err) {
+      console.error("Failed to load shipment data:", err);
+
+      setError(
+        err?.message ||
+          "Unable to load shipment data from the backend."
       );
 
-      setUser(storedUser);
-    } catch (error) {
-      console.error("Unable to read logged-in user:", error);
-      setUser(null);
+      setShipments([]);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    let active = true;
-
-    async function loadShipments() {
-      try {
-        const data = await apiRequest("/api/shipments");
-
-        if (active) {
-          setShipmentData(Array.isArray(data) ? data : []);
-          setError("");
-        }
-      } catch (err) {
-        if (active) {
-          setError(err.message || "Unable to load shipments.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadShipments();
-
-    return () => {
-      active = false;
-    };
+    loadData();
   }, []);
 
-  const handleCancel = async (id, trackingNumber) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to cancel shipment ${
-          trackingNumber || id
-        }?`
-      )
-    ) {
-      return;
-    }
+  async function handleCancel(shipmentId) {
+    if (!window.confirm("Cancel this shipment?")) return;
 
     try {
-      await apiRequest(`/api/shipments/${id}/cancel`, {
+      setActionError("");
+      await apiRequest(`/api/shipments/${shipmentId}/cancel`, {
         method: "PATCH",
       });
-
-      setShipmentData((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, status: "CANCELLED" } : s
-        )
-      );
-
-      alert("Shipment cancelled successfully.");
+      await loadData();
     } catch (err) {
-      alert(`Error cancelling shipment: ${err.message}`);
+      console.error("Failed to cancel shipment:", err);
+      setActionError(err.message || "Unable to cancel this shipment.");
     }
-  };
+  }
 
-  const filteredShipments = shipmentData.filter((shipment) => {
-    const searchValue = search.toLowerCase();
+  /*
+   * Only shipments that are actually active according
+   * to the existing backend shipment status are displayed.
+   */
+  const activeShipments = useMemo(() => {
+    return shipments.filter((shipment) =>
+      ACTIVE_STATUSES.includes(getStatus(shipment))
+    );
+  }, [shipments]);
 
-    const id = shipment.trackingNumber || "";
-    const customer = shipment.customerName || "";
+  const filteredShipments = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
 
-    const route = `${shipment.senderAddress || ""} ${
-      shipment.receiverAddress || ""
-    }`;
+    return activeShipments.filter((shipment) => {
+      const status = getStatus(shipment);
 
-    const matchesSearch =
-      id.toLowerCase().includes(searchValue) ||
-      customer.toLowerCase().includes(searchValue) ||
-      route.toLowerCase().includes(searchValue);
+      if (
+        statusFilter !== "ALL" &&
+        status !== statusFilter
+      ) {
+        return false;
+      }
 
-    const normalizedStatus = String(
-      shipment.status || ""
-    ).replaceAll("_", " ");
+      if (!search) {
+        return true;
+      }
 
-    const matchesStatus =
-      statusFilter === "All" ||
-      normalizedStatus === statusFilter;
+      const searchableText = [
+        getTrackingNumber(shipment),
+        shipment?.referenceId,
+        getCustomerName(shipment),
+        getCustomerPhone(shipment),
+        getOrigin(shipment),
+        getDestination(shipment),
+        shipment?.packageDescription,
+        shipment?.packageWeightKg,
+        shipment?.assignedOperatorName,
+        status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-    return matchesSearch && matchesStatus;
-  });
+      return searchableText.includes(search);
+    });
+  }, [activeShipments, searchTerm, statusFilter]);
 
-  // Logged-in user's name
+  const inTransitCount = activeShipments.filter((shipment) =>
+    ["IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(
+      getStatus(shipment)
+    )
+  ).length;
+
+  const pickedUpCount = activeShipments.filter(
+    (shipment) => getStatus(shipment) === "PICKED_UP"
+  ).length;
+
+  const createdCount = activeShipments.filter(
+    (shipment) => getStatus(shipment) === "CREATED"
+  ).length;
+
   const userName =
     user?.name ||
     user?.fullName ||
     user?.username ||
+    user?.email ||
     "Business Client";
 
-  // First letter for avatar
-  const userInitial = userName
-    .trim()
-    .charAt(0)
-    .toUpperCase();
+  const initials = getInitials(userName);
 
   return (
     <div className="shipment-management-page">
+      <BusinessClientSidebar />
 
-      {/* =================================
-          SIDEBAR
-      ================================= */}
-
-      <aside className="management-sidebar">
-
-        <div className="management-logo">
-
-          <div className="management-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-
-        </div>
-
-
-        <div className="management-menu-title">
-          BUSINESS CLIENT
-        </div>
-
-
-        <nav className="management-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="management-nav-link"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="management-nav-link"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="management-nav-link active"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="management-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="management-nav-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="management-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="management-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="management-nav-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="management-nav-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="management-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="management-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-
-        <Link
-          to="/login"
-          className="management-logout"
-        >
-          ⇥ Logout
-        </Link>
-
-      </aside>
-
-
-      {/* =================================
-          MAIN
-      ================================= */}
-
+      {/* MAIN */}
       <main className="management-main">
-
         {/* HEADER */}
-
         <header className="management-header">
-
           <div>
-
             <div className="management-breadcrumb">
-              BUSINESS CLIENT / SHIPMENT MANAGEMENT
+              Business Client
+              <span>/</span>
+              Shipment Management
             </div>
 
-            <h1>
-              Shipment Management
-            </h1>
+            <h1>Shipment Management</h1>
 
             <p>
-              View, search and manage all your business shipments.
+              View and manage active shipments.
             </p>
-
           </div>
-
-
-          {/* =============================
-              LOGGED-IN USER PROFILE
-          ============================= */}
 
           <div className="management-profile">
-
             <div className="management-avatar">
-              {userInitial}
+              {initials}
             </div>
 
             <div>
-              <strong>
-                {userName}
-              </strong>
-
-              <span>
-                Business Client
-              </span>
+              <strong>{userName}</strong>
+              <span>Business Client</span>
             </div>
-
           </div>
-
         </header>
 
-
-        {/* =================================
-            SUMMARY
-        ================================= */}
-
+        {/* SUMMARY */}
+        {!loading && !error && (
         <section className="management-summary">
-
           <div className="summary-card">
-
-            <span>Total Shipments</span>
-
-            <strong>
-              {shipmentData.length}
-            </strong>
-
-            <small>
-              All shipments
-            </small>
-
-          </div>
-
-
-          <div className="summary-card">
-
-            <span>In Transit</span>
-
-            <strong>
-              {
-                shipmentData.filter(
-                  (s) => s.status === "IN_TRANSIT"
-                ).length
-              }
-            </strong>
-
-            <small>
-              Currently moving
-            </small>
-
-          </div>
-
-
-          <div className="summary-card">
-
-            <span>Delivered</span>
-
-            <strong>
-              {
-                shipmentData.filter(
-                  (s) => s.status === "DELIVERED"
-                ).length
-              }
-            </strong>
-
-            <small>
-              Successfully delivered
-            </small>
-
-          </div>
-
-
-          <div className="summary-card">
-
-            <span>Delayed</span>
-
-            <strong>
-              {
-                shipmentData.filter(
-                  (s) => s.status === "FAILED_DELIVERY"
-                ).length
-              }
-            </strong>
-
-            <small>
-              Needs attention
-            </small>
-
-          </div>
-
-        </section>
-
-
-        {/* =================================
-            TABLE PANEL
-        ================================= */}
-
-        <section className="management-panel">
-
-          <div className="management-panel-header">
+            <Package size={20} />
 
             <div>
-
-              <span>
-                SHIPMENT DATABASE
-              </span>
-
-              <h2>
-                All Shipments
-              </h2>
-
+              <strong>{activeShipments.length}</strong>
+              <span>Active Shipments</span>
             </div>
-
-
-            <Link
-              to="/business/create-shipment"
-              className="management-create-btn"
-            >
-              + Create Shipment
-            </Link>
-
           </div>
 
+          <div className="summary-card">
+            <Truck size={20} />
 
-          {/* SEARCH / FILTER */}
+            <div>
+              <strong>{inTransitCount}</strong>
+              <span>In Transit</span>
+            </div>
+          </div>
 
+          <div className="summary-card">
+            <MapPin size={20} />
+
+            <div>
+              <strong>{pickedUpCount}</strong>
+              <span>Picked Up</span>
+            </div>
+          </div>
+
+          <div className="summary-card">
+            <Clock3 size={20} />
+
+            <div>
+              <strong>{createdCount}</strong>
+              <span>Created</span>
+            </div>
+          </div>
+        </section>
+        )}
+
+        {/* SHIPMENT PANEL */}
+        <section className="management-panel">
+          <div className="management-panel-header">
+            <div>
+              <h2>Shipment Management</h2>
+
+              <p>
+                {loading
+                  ? "Loading shipment data..."
+                  : error
+                    ? ""
+                  : `${filteredShipments.length} active shipment${
+                      filteredShipments.length === 1
+                        ? ""
+                        : "s"
+                    } found`}
+              </p>
+            </div>
+          </div>
+
+          {/* SEARCH + FILTER */}
           <div className="management-tools">
-
             <div className="management-search">
-
-              <span>
-                ⌕
-              </span>
+              <Search size={17} />
 
               <input
                 type="text"
-                placeholder="Search tracking ID, order, customer or route..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
+                placeholder="Search shipment, customer or route..."
+                value={searchTerm}
+                onChange={(event) =>
+                  setSearchTerm(event.target.value)
                 }
               />
-
             </div>
-
 
             <select
               className="management-filter"
               value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value)
+              onChange={(event) =>
+                setStatusFilter(event.target.value)
               }
             >
-
-              <option value="All">
-                All Status
+              <option value="ALL">
+                All Active
               </option>
 
-              <option value="IN TRANSIT">
-                In Transit
+              <option value="CREATED">
+                Created
               </option>
 
-              <option value="DELIVERED">
-                Delivered
-              </option>
-
-              <option value="PICKED UP">
+              <option value="PICKED_UP">
                 Picked Up
               </option>
 
-              <option value="FAILED DELIVERY">
-                Failed Delivery
+              <option value="IN_TRANSIT">
+                In Transit
               </option>
 
+              <option value="OUT_FOR_DELIVERY">
+                Out for Delivery
+              </option>
             </select>
-
           </div>
-
-
-          {/* LOADING */}
-
-          {loading && (
-            <div className="no-results">
-              Loading shipments...
-            </div>
-          )}
-
 
           {/* ERROR */}
-
           {error && (
             <div className="no-results">
-              Error: {error}
+              <strong>
+                Unable to load shipment data
+              </strong>
+
+              <p>{error}</p>
+
+              <button
+                type="button"
+                onClick={loadData}
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+          {actionError && (
+            <div className="no-results" role="alert">
+              <p>{actionError}</p>
             </div>
           )}
 
-
           {/* TABLE */}
+          {!error && (
+            <div className="management-table-wrapper">
+              <table className="management-table">
+                <thead>
+                  <tr>
+                    <th>TRACKING NUMBER</th>
+                    <th>REFERENCE / ORDER ID</th>
+                    <th>SENDER</th>
+                    <th>SENDER PHONE</th>
+                    <th>RECEIVER</th>
+                    <th>RECEIVER PHONE</th>
+                    <th>PACKAGE</th>
+                    <th>WEIGHT</th>
+                    <th>STATUS</th>
+                    <th>ASSIGNED LOGISTICS OPERATOR</th>
+                    <th>CREATED DATE</th>
+                    <th>UPDATED DATE</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
 
-          <div className="management-table-wrapper">
-
-            <table className="management-table">
-
-              <thead>
-
-                <tr>
-
-                  <th>
-                    TRACKING ID
-                  </th>
-
-                  <th>
-                    CUSTOMER
-                  </th>
-
-                  <th>
-                    ROUTE
-                  </th>
-
-                  <th>
-                    CREATED
-                  </th>
-
-                  <th>
-                    PRIORITY
-                  </th>
-
-                  <th>
-                    STATUS
-                  </th>
-
-                  <th>
-                    ETA
-                  </th>
-
-                  <th>
-                    ACTION
-                  </th>
-
-                </tr>
-
-              </thead>
-
-
-              <tbody>
-
-                {filteredShipments.map(
-                  (shipment) => (
-
-                    <tr
-                      key={
-                        shipment.trackingNumber ||
-                        `SHIP-${shipment.id}`
-                      }
-                    >
-
-                      <td>
-
-                        <strong>
-                          {
-                            shipment.trackingNumber ||
-                            `SHIP-${shipment.id}`
-                          }
-                        </strong>
-
-                        <small>
-                          {
-                            shipment.id
-                              ? `Shipment #${shipment.id}`
-                              : ""
-                          }
-                        </small>
-
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="13">
+                        <div className="no-results">
+                          Loading shipments...
+                        </div>
                       </td>
-
-
-                      <td>
-
-                        <strong className="customer-name">
-                          {
-                            shipment.customerName ||
-                            "Unassigned"
-                          }
-                        </strong>
-
-                      </td>
-
-
-                      <td>
-
-                        <span className="route-text">
-
-                          {`${
-                            shipment.senderAddress ||
-                            "—"
-                          } → ${
-                            shipment.receiverAddress ||
-                            "—"
-                          }`}
-
-                        </span>
-
-                      </td>
-
-
-                      <td>
-
-                        <span className="date-text">
-
-                          {
-                            shipment.createdAt
-                              ? new Date(
-                                  shipment.createdAt
-                                ).toLocaleDateString()
-                              : "—"
-                          }
-
-                        </span>
-
-                      </td>
-
-
-                      <td>
-
-                        <span
-                          className={`priority ${String(
-                            shipment.priority ||
-                              "standard"
-                          )
-                            .toLowerCase()
-                            .replaceAll(
-                              " ",
-                              "-"
-                            )}`}
-                        >
-
-                          {
-                            shipment.priority ||
-                            "Standard"
-                          }
-
-                        </span>
-
-                      </td>
-
-
-                      <td>
-
-                        <span
-                          className={`management-status ${String(
-                            shipment.status ||
-                              "unknown"
-                          )
-                            .toLowerCase()
-                            .replaceAll(
-                              "_",
-                              "-"
-                            )
-                            .replaceAll(
-                              " ",
-                              "-"
-                            )}`}
-                        >
-
-                          ●{" "}
-                          {String(
-                            shipment.status ||
-                              "UNKNOWN"
-                          ).replaceAll(
-                            "_",
-                            " "
-                          )}
-
-                        </span>
-
-                      </td>
-
-
-                      <td>
-
-                        <span className="eta-text">
-
-                          {
-                            shipment.updatedAt
-                              ? new Date(
-                                  shipment.updatedAt
-                                ).toLocaleDateString()
-                              : "—"
-                          }
-
-                        </span>
-
-                      </td>
-
-
-                      <td
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          alignItems: "center",
-                        }}
-                      >
-
-                        <Link
-                          to={`/business/tracking?trackingNumber=${
-                            shipment.trackingNumber ||
-                            `SHIP-${shipment.id}`
-                          }`}
-                          className="manage-action"
-                        >
-                          Track
-                        </Link>
-
-
-                        {shipment.id &&
-                          shipment.status !==
-                            "CANCELLED" &&
-                          shipment.status !==
-                            "DELIVERED" && (
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleCancel(
-                                  shipment.id,
-                                  shipment.trackingNumber
-                                )
-                              }
-                              className="manage-action"
-                              style={{
-                                background:
-                                  "rgba(239, 68, 68, 0.1)",
-                                color:
-                                  "#ef4444",
-                                border:
-                                  "1px solid rgba(239, 68, 68, 0.3)",
-                                cursor:
-                                  "pointer",
-                                padding:
-                                  "4px 8px",
-                                borderRadius:
-                                  "4px",
-                              }}
-                            >
-                              Cancel
-                            </button>
-
-                          )}
-
-                      </td>
-
                     </tr>
+                  ) : filteredShipments.length === 0 ? (
+                    <tr>
+                      <td colSpan="13">
+                        <div className="no-results">
+                          <Package size={28} />
 
-                  )
-                )}
+                          <h3>
+                            No active shipments found
+                          </h3>
 
-              </tbody>
+                          <p>
+                            No active shipment from the backend
+                            matches the current filter.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredShipments.map((shipment) => {
+                      const status = getStatus(shipment);
+                      const trackingNumber =
+                        getTrackingNumber(shipment);
 
-            </table>
+                      return (
+                        <tr
+                          key={
+                            shipment?.id ??
+                            shipment?.trackingNumber
+                          }
+                        >
+                          {/* TRACKING NUMBER */}
+                          <td>
+                            {trackingNumber}
+                          </td>
 
+                          {/* REFERENCE / ORDER ID */}
+                          <td>
+                            {shipment?.referenceId || ""}
+                          </td>
 
-            {/* NO RESULTS */}
+                          {/* SENDER */}
+                          <td>
+                            {getOrigin(shipment)}
+                          </td>
 
-            {filteredShipments.length ===
-              0 &&
-              !loading && (
+                          {/* SENDER PHONE */}
+                          <td>
+                            {shipment?.senderPhone || ""}
+                          </td>
 
-                <div className="no-results">
+                          {/* RECEIVER */}
+                          <td>
+                            {getDestination(shipment)}
+                          </td>
 
-                  <div>
-                    ⌕
-                  </div>
+                          {/* RECEIVER PHONE */}
+                          <td>
+                            {getCustomerPhone(shipment)}
+                          </td>
 
-                  <h3>
-                    No shipments found
-                  </h3>
+                          {/* PACKAGE */}
+                          <td>
+                            {shipment?.packageDescription || ""}
+                          </td>
 
-                  <p>
-                    Try changing your search
-                    or status filter.
-                  </p>
+                          {/* WEIGHT */}
+                          <td>
+                            {shipment?.packageWeightKg != null
+                              ? `${shipment.packageWeightKg} kg`
+                              : ""}
+                          </td>
 
-                </div>
+                          {/* STATUS */}
+                          <td>
+                            <span
+                              className={`management-status ${getStatusClass(
+                                status
+                              )}`}
+                            >
+                              <i></i>
+                              {formatStatus(status)}
+                            </span>
+                          </td>
 
-              )}
+                          {/* ASSIGNED LOGISTICS OPERATOR */}
+                          <td>
+                            {shipment?.assignedOperatorName || ""}
+                          </td>
 
-          </div>
+                          {/* CREATED DATE */}
+                          <td>
+                            {formatDate(shipment?.createdAt)}
+                          </td>
 
+                          {/* UPDATED DATE */}
+                          <td>
+                            {formatDate(shipment?.updatedAt)}
+                          </td>
+
+                          {/* ACTION */}
+                          <td>
+                            {trackingNumber ? (
+                              <Link
+                                className="manage-action"
+                                to={`/business/tracking?trackingNumber=${encodeURIComponent(trackingNumber)}`}
+                              >
+                                Track Shipment
+                                <ArrowRight size={14} />
+                              </Link>
+                            ) : null}
+                            {shipment?.id && (
+                              <>
+                                <Link
+                                  className="manage-action"
+                                  to={`/business/create-shipment?edit=${shipment.id}`}
+                                >
+                                  Edit
+                                </Link>
+                                <button
+                                  type="button"
+                                  className="manage-action"
+                                  onClick={() => handleCancel(shipment.id)}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* FOOTER */}
-
-          <div className="management-table-footer">
-
-            <span>
-              Showing{" "}
-              {filteredShipments.length} of{" "}
-              {shipmentData.length} shipments
-            </span>
-
-            <div className="pagination">
-
-              <button>
-                ‹
-              </button>
-
-              <button className="current-page">
-                1
-              </button>
-
-              <button>
-                2
-              </button>
-
-              <button>
-                3
-              </button>
-
-              <button>
-                …
-              </button>
-
-              <button>
-                13
-              </button>
-
-              <button>
-                ›
-              </button>
+          {!error && !loading && (
+            <div className="management-table-footer">
+              <span>
+                Showing{" "}
+                <strong>
+                  {filteredShipments.length}
+                </strong>{" "}
+                of{" "}
+                <strong>
+                  {activeShipments.length}
+                </strong>{" "}
+                active shipments
+              </span>
 
             </div>
-
-          </div>
-
+          )}
         </section>
 
-
         <footer className="management-footer">
-          © 2026 ShipTrack Pro · Integrated Logistics Intelligence Platform
+          © 2026 ShipTrack
         </footer>
-
       </main>
-
     </div>
   );
 }

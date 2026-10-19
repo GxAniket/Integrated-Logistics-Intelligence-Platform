@@ -1,6 +1,12 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import "./App.css";
-
 
 // =========================================================
 // PUBLIC PAGES
@@ -63,6 +69,36 @@ import SupportDashboard from "./pages/dashboards/SupportDashboard";
 
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 
+const DASHBOARD_BY_ROLE = {
+  CUSTOMER: "/dashboard/customer",
+  BUSINESS_CLIENT: "/dashboard/business",
+  LOGISTICS_OPERATOR: "/dashboard/operator",
+  SUPPORT_AGENT: "/dashboard/support",
+  ADMINISTRATOR: "/dashboard/admin",
+};
+
+function RequireRole({ role }) {
+  const token = localStorage.getItem("shiptrackToken");
+  const location = useLocation();
+  let user;
+
+  try {
+    user = JSON.parse(localStorage.getItem("shiptrackUser") || "null");
+  } catch {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!token || !user?.role) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user.role !== role) {
+    return <Navigate to={DASHBOARD_BY_ROLE[user.role] || "/login"} replace />;
+  }
+
+  return <Outlet />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -89,6 +125,7 @@ function App() {
         />
 
 
+        <Route element={<RequireRole role="CUSTOMER" />}>
         {/* =================================================
             CUSTOMER ROUTES
         ================================================= */}
@@ -122,8 +159,9 @@ function App() {
           path="/tracking-insights"
           element={<TrackingInsights />}
         />
+        </Route>
 
-
+        <Route element={<RequireRole role="BUSINESS_CLIENT" />}>
         {/* =================================================
             BUSINESS CLIENT ROUTES
         ================================================= */}
@@ -192,8 +230,9 @@ function App() {
           path="/business/module"
           element={<BusinessModule />}
         />
+        </Route>
 
-
+        <Route element={<RequireRole role="LOGISTICS_OPERATOR" />}>
         {/* =================================================
             LOGISTICS OPERATOR ROUTES
         ================================================= */}
@@ -232,8 +271,9 @@ function App() {
           path="/operator/pod"
           element={<OperatorProofOfDelivery />}
         />
+        </Route>
 
-
+        <Route element={<RequireRole role="SUPPORT_AGENT" />}>
         {/* =================================================
             SUPPORT AGENT ROUTES
         ================================================= */}
@@ -243,7 +283,33 @@ function App() {
           element={<SupportDashboard />}
         />
 
+        <Route
+          path="/support/shipments"
+          element={<SupportDashboard />}
+        />
 
+        <Route
+          path="/support/tracking"
+          element={<SupportDashboard />}
+        />
+
+        <Route
+          path="/support/notifications"
+          element={<SupportDashboard />}
+        />
+
+        <Route
+          path="/support/reports"
+          element={<SupportDashboard />}
+        />
+
+        <Route
+          path="/support/account"
+          element={<SupportDashboard />}
+        />
+        </Route>
+
+        <Route element={<RequireRole role="ADMINISTRATOR" />}>
         {/* =================================================
             ADMINISTRATOR ROUTES
         ================================================= */}
@@ -252,6 +318,7 @@ function App() {
           path="/dashboard/admin"
           element={<AdminDashboard />}
         />
+        </Route>
 
 
         {/* =================================================

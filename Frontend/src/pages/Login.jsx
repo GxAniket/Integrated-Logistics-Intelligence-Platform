@@ -9,9 +9,9 @@ import {
   Truck,
 } from "lucide-react";
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { toast } from "react-toastify";
+
 import "./Login.css";
 import { apiRequest } from "../api";
 
@@ -19,12 +19,23 @@ import { apiRequest } from "../api";
 function Login() {
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [rememberEmail, setRememberEmail] = useState(() =>
+    Boolean(localStorage.getItem("shiptrackRememberedEmail"))
+  );
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetOtpSent, setResetOtpSent] = useState(false);
+  const [resetOtp, setResetOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [authMessage, setAuthMessage] = useState(null);
 
   const [formData, setFormData] = useState({
-    email: "",
+    email: localStorage.getItem("shiptrackRememberedEmail") || "",
     password: "",
     role: "",
   });
@@ -58,7 +69,7 @@ function Login() {
     const selectedRole = formData.role;
 
     if (!selectedRole) {
-      toast.error("Please select your role.");
+      setAuthMessage({ type: "error", text: "Please select your role." });
       return;
     }
 
@@ -73,6 +84,7 @@ function Login() {
     const backendRole = roleMap[selectedRole];
 
     setIsSubmitting(true);
+    setAuthMessage(null);
     try {
       const data = await apiRequest("/api/auth/login", {
         method: "POST",
@@ -83,8 +95,17 @@ function Login() {
       });
 
       if (data.role !== backendRole) {
-        toast.error("Role mismatch. Please select the correct role.");
+        setAuthMessage({
+          type: "error",
+          text: `This account belongs to ${data.role}, not ${backendRole}.`,
+        });
         return;
+      }
+
+      if (rememberEmail) {
+        localStorage.setItem("shiptrackRememberedEmail", email);
+      } else {
+        localStorage.removeItem("shiptrackRememberedEmail");
       }
 
       localStorage.setItem("shiptrackToken", data.token);
@@ -106,15 +127,85 @@ function Login() {
         ADMINISTRATOR: "/dashboard/admin",
       };
 
-      toast.success("Login successful!");
-      navigate(routes[data.role] || "/");
+      const destination = location.state?.from;
+      navigate(
+        destination?.pathname
+          ? `${destination.pathname}${destination.search || ""}${destination.hash || ""}`
+          : routes[data.role] || "/",
+        { replace: true }
+      );
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.message || "Unable to connect to backend.");
+      setAuthMessage({
+        type: "error",
+        text: error.message || "Unable to connect to backend.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await apiRequest("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: formData.email.trim().toLowerCase() }),
+      });
+      setResetOtpSent(true);
+      setAuthMessage({
+        type: "success",
+        text: "If an account exists for this email, a verification code has been sent.",
+      });
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      setAuthMessage({
+        type: "error",
+        text: error.message || "Unable to send a verification code.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      setAuthMessage({ type: "error", text: "The passwords do not match." });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiRequest("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          otp: resetOtp.trim(),
+          newPassword,
+        }),
+      });
+      setShowPasswordReset(false);
+      setResetOtpSent(false);
+      setResetOtp("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setAuthMessage({
+        type: "success",
+        text: "Your password has been reset. Sign in with your new password.",
+      });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setAuthMessage({
+        type: "error",
+        text: error.message || "Unable to reset your password.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+ };
 
 
   return (
@@ -300,6 +391,106 @@ function Login() {
               FORM
           ================================================= */}
 
+          {authMessage && (
+            <p
+              className={`auth-message ${authMessage.type}`}
+              role={authMessage.type === "error" ? "alert" : "status"}
+            >
+              {authMessage.text}
+            </p>
+          )}
+
+          {showPasswordReset ? (
+          <form onSubmit={resetOtpSent ? handleResetPassword : handleSendResetOtp}>
+            <div className="auth-field">
+              <label>Email Address</label>
+              <div className="auth-input-wrapper">
+                <Mail size={17} />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            {resetOtpSent && (
+              <>
+                <div className="auth-field">
+                  <label>Verification Code</label>
+                  <div className="auth-input-wrapper">
+                    <ShieldCheck size={17} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={resetOtp}
+                      onChange={(event) => setResetOtp(event.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="auth-field">
+                  <label>New Password</label>
+                  <div className="auth-input-wrapper">
+                    <LockKeyhole size={17} />
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      placeholder="At least 8 characters"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="auth-field">
+                  <label>Confirm New Password</label>
+                  <div className="auth-input-wrapper">
+                    <LockKeyhole size={17} />
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      placeholder="Enter your new password again"
+                      value={confirmNewPassword}
+                      onChange={(event) => setConfirmNewPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+              {isSubmitting
+                ? "Please wait..."
+                : resetOtpSent
+                  ? "Reset Password"
+                  : "Send Verification Code"}
+              <ArrowRight size={18} />
+            </button>
+            <button
+              type="button"
+              className="forgot-password"
+              onClick={() => {
+                setShowPasswordReset(false);
+                setResetOtpSent(false);
+                setAuthMessage(null);
+              }}
+            >
+              Back to sign in
+            </button>
+          </form>
+          ) : (
           <form onSubmit={handleSubmit}>
 
 
@@ -307,7 +498,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label htmlFor="login-email">
+              <label>
                 Email Address
               </label>
 
@@ -316,7 +507,6 @@ function Login() {
                 <Mail size={17} />
 
                 <input
-                  id="login-email"
                   type="email"
                   name="email"
                   placeholder="you@example.com"
@@ -334,7 +524,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label htmlFor="login-password">
+              <label>
                 Password
               </label>
 
@@ -348,7 +538,6 @@ function Login() {
                       ? "text"
                       : "password"
                   }
-                  id="login-password"
                   name="password"
                   placeholder="Enter your password"
                   value={formData.password}
@@ -382,7 +571,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label htmlFor="login-role">
+              <label>
                 Login As
               </label>
 
@@ -391,14 +580,13 @@ function Login() {
                 <ShieldCheck size={17} />
 
                 <select
-                  id="login-role"
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
                   required
                 >
 
-                  <option value="">
+                  <option value="" disabled>
                     Select your role
                   </option>
 
@@ -437,13 +625,12 @@ function Login() {
 
                 <input
                   type="checkbox"
-                  name="remember"
-                  checked={formData.remember}
-                  onChange={handleChange}
+                  checked={rememberEmail}
+                  onChange={(event) => setRememberEmail(event.target.checked)}
                 />
 
                 <span>
-                  Remember me
+                  Remember email
                 </span>
 
               </label>
@@ -452,6 +639,11 @@ function Login() {
               <button
                 type="button"
                 className="forgot-password"
+                onClick={() => {
+                  setShowPasswordReset(true);
+                  setResetOtpSent(false);
+                  setAuthMessage(null);
+                }}
               >
                 Forgot password?
               </button>
@@ -475,6 +667,7 @@ function Login() {
             </button>
 
           </form>
+          )}
 
 
           {/* =================================================

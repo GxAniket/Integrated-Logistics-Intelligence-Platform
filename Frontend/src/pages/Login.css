@@ -134,7 +134,7 @@
 .auth-brand strong {
   display: block;
 
-  font-size: 18px;
+  font-size: 16px;
 
   font-weight: 800;
 }
@@ -152,7 +152,7 @@
 
   color: #626a7d;
 
-  font-size: 9px;
+  font-size: 6px;
 
   letter-spacing: 1.1px;
 }
@@ -161,7 +161,7 @@
 .back-home {
   color: #a8afbf;
 
-  font-size: 13px;
+  font-size: 10px;
 
   font-weight: 600;
 
@@ -237,7 +237,7 @@
 
   color: #aeb5c4;
 
-  font-size: 11px;
+  font-size: 8px;
 
   font-weight: 800;
 
@@ -301,7 +301,7 @@
 
   color: #8e96a8;
 
-  font-size: 16px;
+  font-size: 12px;
 
   line-height: 1.8;
 }
@@ -365,7 +365,7 @@
 
   color: #e8eaf0;
 
-  font-size: 14px;
+  font-size: 10px;
 }
 
 
@@ -376,7 +376,7 @@
 
   color: #656d80;
 
-  font-size: 12px;
+  font-size: 8px;
 }
 
 
@@ -443,7 +443,7 @@
 
   color: white;
 
-  font-size: 28px;
+  font-size: 21px;
 
   letter-spacing: -0.5px;
 }
@@ -454,7 +454,7 @@
 
   color: #687083;
 
-  font-size: 12px;
+  font-size: 8px;
 }
 
 
@@ -474,7 +474,7 @@
 
   color: #cdd1da;
 
-  font-size: 13px;
+  font-size: 9px;
 
   font-weight: 700;
 }
@@ -506,7 +506,7 @@
 .auth-select-wrapper select {
   width: 100%;
 
-  height: 54px;
+  height: 44px;
 
   padding:
     0 40px;
@@ -523,7 +523,7 @@
 
   color: #f1f3f6;
 
-  font-size: 15px;
+  font-size: 10px;
 
   transition: 0.2s;
 }
@@ -612,7 +612,7 @@
 
   color: #777f90;
 
-  font-size: 12px;
+  font-size: 8px;
 
   cursor: pointer;
 }
@@ -630,9 +630,23 @@
 
   color: #a78bfa;
 
-  font-size: 12px;
+  font-size: 8px;
 
   cursor: pointer;
+}
+
+.auth-message {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.auth-message.success {
+  color: #86efac;
+}
+
+.auth-message.error {
+  color: #fca5a5;
 }
 
 
@@ -643,7 +657,7 @@
 .auth-submit {
   width: 100%;
 
-  height: 54px;
+  height: 45px;
 
   display: flex;
 
@@ -665,7 +679,7 @@
       #ff286d
     );
 
-  font-size: 15px;
+  font-size: 10px;
 
   font-weight: 800;
 
@@ -700,7 +714,7 @@
 
   color: #4d5566;
 
-  font-size: 10px;
+  font-size: 6px;
 
   font-weight: 800;
 
@@ -728,7 +742,7 @@
 
   color: #70798b;
 
-  font-size: 12px;
+  font-size: 9px;
 }
 
 
@@ -809,137 +823,4 @@
     padding: 22px;
   }
 
-}
-
-/* =====================================================
-   READABILITY OVERRIDES — LOGIN PAGE
-   Keep these at the end of Login.css
-===================================================== */
-
-.auth-card-header {
-  gap: 16px;
-}
-
-.auth-card-icon {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-}
-
-.auth-card-header {
-  margin-bottom: 30px;
-}
-
-.auth-field {
-  margin-bottom: 22px;
-}
-
-.auth-input-wrapper > svg,
-.auth-select-wrapper > svg {
-  left: 16px;
-  width: 22px;
-  height: 22px;
-}
-
-.auth-input-wrapper input,
-.auth-select-wrapper select {
-  padding-left: 50px;
-  padding-right: 44px;
-  border-radius: 13px;
-}
-
-.password-toggle {
-  right: 14px;
-}
-
-.password-toggle svg {
-  width: 22px;
-  height: 22px;
-}
-
-.remember input {
-  width: 17px;
-  height: 17px;
-}
-
-.auth-options {
-  margin: 8px 0 24px;
-}
-
-.auth-submit {
-  border-radius: 13px;
-}
-
-.auth-divider {
-  letter-spacing: 1.2px;
-}
-
-.auth-switch a {
-  display: inline-block;
-  padding: 4px 0;
-}
-
-@media (max-width: 550px) {
-  .auth-card h2 {
-    font-size: 25px;
-  }
-
-  .auth-card-header p {
-    font-size: 12px;
-  }
-
-  .auth-field label {
-    font-size: 13px;
-  }
-
-  .auth-input-wrapper input,
-  .auth-select-wrapper select {
-    font-size: 15px;
-  }
-
-  .auth-submit {
-    font-size: 15px;
-  }
-}
-
-/* =====================================================
-   EXTRA-READABLE TYPOGRAPHY OVERRIDES
-   Appended to increase readability across the login page.
-===================================================== */
-.auth-brand strong { font-size: 20px; }
-.auth-brand small { font-size: 10px; }
-.back-home { font-size: 14px; }
-.auth-tag { font-size: 11px; }
-.auth-info > p { font-size: 16px; line-height: 1.8; }
-.auth-feature strong { font-size: 16px; }
-.auth-feature small { font-size: 14px; line-height: 1.5; }
-.auth-card h2 { font-size: 32px; }
-.auth-card-header p { font-size: 14px; line-height: 1.5; }
-.auth-field label { font-size: 15px; margin-bottom: 9px; }
-.auth-input-wrapper input,
-.auth-select-wrapper select { font-size: 17px; height: 58px; }
-.auth-options .remember,
-.remember { font-size: 14px; }
-.forgot-password { font-size: 14px; }
-.auth-submit { font-size: 17px; height: 58px; }
-.auth-divider { font-size: 10px; }
-.auth-switch { font-size: 14px; }
-.auth-switch a { font-size: 14px; }
-
-@media (max-width: 550px) {
-  .auth-brand strong { font-size: 18px; }
-  .auth-brand small { font-size: 9px; }
-  .auth-info > p { font-size: 15px; }
-  .auth-feature strong { font-size: 15px; }
-  .auth-feature small { font-size: 13px; }
-  .auth-card h2 { font-size: 29px; }
-  .auth-card-header p { font-size: 13px; }
-  .auth-field label { font-size: 14px; }
-  .auth-input-wrapper input,
-  .auth-select-wrapper select { font-size: 16px; height: 54px; }
-  .remember,
-  .forgot-password { font-size: 13px; }
-  .auth-submit { font-size: 16px; height: 54px; }
-  .auth-switch,
-  .auth-switch a { font-size: 13px; }
 }

@@ -14,15 +14,29 @@ import {
   MapPin,
 } from "lucide-react";
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
 import "./Register.css";
 import { apiRequest } from "../api";
-import { toast } from "react-toastify";
 
 function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const currentUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("shiptrackUser") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const canCreatePrivilegedAccount =
+    Boolean(localStorage.getItem("shiptrackToken")) &&
+    currentUser?.role === "ADMINISTRATOR";
+  const initialRole =
+    !canCreatePrivilegedAccount && searchParams.get("role") === "business"
+      ? "business"
+      : "";
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -36,7 +50,7 @@ function Register() {
     mobile: "",
     password: "",
     confirmPassword: "",
-    role: "",
+    role: initialRole,
 
     // Address
     address: "",
@@ -416,32 +430,32 @@ function Register() {
     // -------------------------------------------------------
 
     if (!firstName || !lastName) {
-      toast.error("Please enter your first name and last name.");
+      alert("Please enter your first name and last name.");
       return;
     }
 
     if (!email) {
-      toast.error("Please enter your email.");
+      alert("Please enter your email.");
       return;
     }
 
     if (!mobile) {
-      toast.error("Please enter your mobile number.");
+      alert("Please enter your mobile number.");
       return;
     }
 
     if (password.length < 6) {
-      toast.error("Password must contain at least 6 characters.");
+      alert("Password must contain at least 6 characters.");
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match.");
+      alert("Passwords do not match.");
       return;
     }
 
     if (!role) {
-      toast.error("Please select your role.");
+      alert("Please select your role.");
       return;
     }
 
@@ -456,7 +470,7 @@ function Register() {
       !formData.country.trim() ||
       !formData.postalCode.trim()
     ) {
-      toast.error("Please complete all address fields.");
+      alert("Please complete all address fields.");
       return;
     }
 
@@ -464,17 +478,21 @@ function Register() {
     // ROLE MAP
     // -------------------------------------------------------
 
-    const roleMap = {
-      customer: "CUSTOMER",
-      business: "BUSINESS_CLIENT",
-      operator: "LOGISTICS_OPERATOR",
-      support: "SUPPORT_AGENT",
-    };
+    const roleMap = canCreatePrivilegedAccount
+      ? {
+          administrator: "ADMINISTRATOR",
+          support: "SUPPORT_AGENT",
+        }
+      : {
+          customer: "CUSTOMER",
+          business: "BUSINESS_CLIENT",
+          operator: "LOGISTICS_OPERATOR",
+        };
 
     const backendRole = roleMap[role];
 
     if (!backendRole) {
-      toast.error("Please select a valid registration role.");
+      alert("Please select a valid registration role.");
       return;
     }
 
@@ -489,7 +507,7 @@ function Register() {
         !formData.gstTaxId.trim() ||
         !formData.contactPersonName.trim()
       ) {
-        toast.error("Please complete all Business Client fields.");
+        alert("Please complete all Business Client fields.");
         return;
       }
     }
@@ -501,7 +519,7 @@ function Register() {
         !formData.transportationMode ||
         !formData.operatingArea.trim()
       ) {
-        toast.error("Please complete all Logistics Operator fields.");
+        alert("Please complete all Logistics Operator fields.");
         return;
       }
     }
@@ -512,7 +530,7 @@ function Register() {
         !formData.organizationName.trim() ||
         !formData.department.trim()
       ) {
-        toast.error("Please complete all Support Agent fields.");
+        alert("Please complete all Support Agent fields.");
         return;
       }
     }
@@ -523,66 +541,70 @@ function Register() {
 
     setIsSubmitting(true);
     try {
-      await apiRequest("/api/auth/register", {
-        method: "POST",
+      const creatingPrivilegedAccount =
+        role === "administrator" || role === "support";
+      await apiRequest(
+        creatingPrivilegedAccount
+          ? "/api/users/privileged"
+          : "/api/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            // Common
+            firstName,
+            lastName,
+            fullName: `${firstName} ${lastName}`,
+            email,
+            password,
+            confirmPassword,
+            role: backendRole,
+            phoneNumber: mobile,
 
-        body: JSON.stringify({
-          // Common
-          firstName,
-          lastName,
-          fullName: `${firstName} ${lastName}`,
-          email,
-          password,
-          confirmPassword,
-          role: backendRole,
-          phoneNumber: mobile,
+            // Address
+            address: formData.address.trim(),
+            city: formData.city.trim(),
+            state: formData.state.trim(),
+            country: formData.country.trim(),
+            postalCode: formData.postalCode.trim(),
 
-          // Address
-          address: formData.address.trim(),
-          city: formData.city.trim(),
-          state: formData.state.trim(),
-          country: formData.country.trim(),
-          postalCode: formData.postalCode.trim(),
+            // Business Client
+            companyName: formData.companyName.trim(),
+            registrationNumber: formData.registrationNumber.trim(),
+            gstTaxId: formData.gstTaxId.trim(),
+            contactPersonName: formData.contactPersonName.trim(),
 
-          // Business Client
-          companyName: formData.companyName.trim(),
-          registrationNumber:
-            formData.registrationNumber.trim(),
-          gstTaxId: formData.gstTaxId.trim(),
-          contactPersonName:
-            formData.contactPersonName.trim(),
+            // Logistics Operator
+            organizationName: formData.organizationName.trim(),
+            licenseRegistrationNumber:
+              formData.licenseRegistrationNumber.trim(),
+            transportationMode: formData.transportationMode,
+            operatingArea: formData.operatingArea.trim(),
 
-          // Logistics Operator
-          organizationName:
-            formData.organizationName.trim(),
-          licenseRegistrationNumber:
-            formData.licenseRegistrationNumber.trim(),
-          transportationMode:
-            formData.transportationMode,
-          operatingArea:
-            formData.operatingArea.trim(),
-
-          // Support Agent
-          employeeId: formData.employeeId.trim(),
-          department: formData.department.trim(),
-        }),
-      });
-
-      // Remove old login session
-      localStorage.removeItem("shiptrackToken");
-      localStorage.removeItem("shiptrackUser");
-
-      toast.success(
-        "Registration successful! Please login to continue."
+            // Support Agent
+            employeeId: formData.employeeId.trim(),
+            department: formData.department.trim(),
+          }),
+        }
       );
 
-      navigate("/login");
+      if (!creatingPrivilegedAccount) {
+        localStorage.removeItem("shiptrackToken");
+        localStorage.removeItem("shiptrackUser");
+      }
+
+      alert(
+        creatingPrivilegedAccount
+          ? `${backendRole === "ADMINISTRATOR" ? "Administrator" : "Support Agent"} account created successfully.`
+          : "Registration successful! Please login to continue."
+      );
+
+      navigate(creatingPrivilegedAccount ? "/dashboard/admin" : "/login");
     } catch (error) {
       console.error("Registration error:", error);
 
-      toast.error(
-        
-          "Invalid registration details!"
+      alert(
+        error.message ||
+          "Unable to connect to backend."
       );
     } finally {
       setIsSubmitting(false);
@@ -700,7 +722,11 @@ function Register() {
             </div>
 
             <div>
-              <h2>Create account</h2>
+              <h2>
+                {canCreatePrivilegedAccount
+                  ? "Create privileged account"
+                  : "Create account"}
+              </h2>
 
               <p>
                 Register your ShipTrack Pro account
@@ -890,21 +916,32 @@ function Register() {
       Select your role
     </option>
 
-    <option value="customer">
-      Customer
-    </option>
+    {canCreatePrivilegedAccount && (
+      <option value="administrator">
+        Administrator
+      </option>
+    )}
+    {canCreatePrivilegedAccount && (
+      <option value="support">
+        Support Agent
+      </option>
+    )}
+    {!canCreatePrivilegedAccount && (
+      <>
+        <option value="customer">
+          Customer
+        </option>
 
-    <option value="business">
-      Business Client
-    </option>
+        <option value="business">
+          Business Client
+        </option>
 
-    <option value="operator">
-      Logistics Operator
-    </option>
+        <option value="operator">
+          Logistics Operator
+        </option>
 
-    <option value="support">
-      Support Agent
-    </option>
+      </>
+    )}
 </select>
 </div>
 </div>

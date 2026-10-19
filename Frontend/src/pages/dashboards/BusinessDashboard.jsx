@@ -1,203 +1,400 @@
-import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Package,
+  Truck,
+  AlertTriangle,
+  Plus,
+} from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "../../api";
+import BusinessClientSidebar from "../../components/BusinessClientSidebar";
 import "./BusinessDashboard.css";
 
-const shipments = [
-  {
-    id: "TRK-2026-101",
-    customer: "TechNova Pvt Ltd",
-    route: "Hyderabad → Bangalore",
-    status: "In Transit",
-    date: "02 Sep 2026",
-    eta: "Today, 6:30 PM",
-  },
-  {
-    id: "TRK-2026-102",
-    customer: "UrbanMart",
-    route: "Mumbai → Pune",
-    status: "Delivered",
-    date: "01 Sep 2026",
-    eta: "Delivered",
-  },
-  {
-    id: "TRK-2026-103",
-    customer: "GreenLeaf Foods",
-    route: "Chennai → Hyderabad",
-    status: "Picked Up",
-    date: "01 Sep 2026",
-    eta: "03 Sep 2026",
-  },
-  {
-    id: "TRK-2026-104",
-    customer: "BuildPro Industries",
-    route: "Delhi → Jaipur",
-    status: "Delayed",
-    date: "31 Aug 2026",
-    eta: "05 Sep 2026",
-  },
+const TERMINAL_STATUSES = [
+  "DELIVERED",
+  "FAILED_DELIVERY",
+  "CANCELLED",
 ];
 
-function BusinessDashboard() {
+const normalizeStatus = (status) =>
+  String(status || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
 
-  // Get logged-in user from localStorage
+const getStatusLabel = (status) => {
+  const normalized = normalizeStatus(status);
+
+  const labels = {
+    CREATED: "Created",
+    PICKED_UP: "Picked Up",
+    IN_TRANSIT: "In Transit",
+    OUT_FOR_DELIVERY: "Out for Delivery",
+    DELIVERED: "Delivered",
+    FAILED_DELIVERY: "Failed Delivery",
+    CANCELLED: "Cancelled",
+  };
+
+  return labels[normalized] || status || "Unknown";
+};
+
+const getStatusClass = (status) => {
+  const normalized = normalizeStatus(status);
+
+  if (normalized === "IN_TRANSIT") {
+    return "in-transit";
+  }
+
+  if (normalized === "DELIVERED") {
+    return "delivered";
+  }
+
+  if (normalized === "PICKED_UP") {
+    return "picked-up";
+  }
+
+  if (normalized === "FAILED_DELIVERY") {
+    return "delayed";
+  }
+
+  return "";
+};
+
+const formatDate = (dateValue) => {
+  if (!dateValue) {
+    return "—";
+  }
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const getInitials = (name) => {
+  if (!name) {
+    return "B";
+  }
+
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+};
+
+const getUserName = (user) =>
+  user?.name ||
+  user?.fullName ||
+  user?.username ||
+  "Business";
+
+const getTrackingNumber = (shipment) =>
+  shipment?.trackingNumber || "";
+
+const getRouteText = (shipment) => {
+  const sender =
+    shipment?.senderAddress ||
+    shipment?.senderCity ||
+    shipment?.origin ||
+    shipment?.pickupLocation;
+
+  const receiver =
+    shipment?.receiverAddress ||
+    shipment?.receiverCity ||
+    shipment?.destination ||
+    shipment?.deliveryLocation;
+
+  if (sender && receiver) {
+    return `${sender} → ${receiver}`;
+  }
+
+  return "";
+};
+
+const getCustomerName = (shipment) => {
+  return (
+    shipment?.customer?.name ||
+    shipment?.customer?.fullName ||
+    shipment?.customerName ||
+    "Not assigned"
+  );
+};
+
+function BusinessDashboard() {
   const [user, setUser] = useState(null);
+  const [shipments, setShipments] = useState([]);
+  const [routes, setRoutes] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [routeError, setRouteError] = useState("");
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("shiptrackUser");
+    let mounted = true;
 
-    if (storedUser) {
+    const loadDashboard = async () => {
       try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Invalid user data:", error);
+        setLoading(true);
+        setError("");
+        setProfileError("");
+        setRouteError("");
+
+        const [userResult, shipmentResult] = await Promise.allSettled([
+          apiRequest("/api/users/me"),
+          apiRequest("/api/shipments"),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (userResult.status === "fulfilled") {
+          setUser(userResult.value);
+          setProfileError("");
+        } else {
+          console.error(
+            "Business dashboard profile loading error:",
+            userResult.reason
+          );
+          setProfileError(
+            userResult.reason?.message || "Unable to load profile details."
+          );
+        }
+
+        if (shipmentResult.status === "rejected") {
+          throw shipmentResult.reason;
+        }
+
+        const shipmentResponse = shipmentResult.value;
+        const shipmentList = Array.isArray(shipmentResponse)
+          ? shipmentResponse
+          : Array.isArray(shipmentResponse?.content)
+            ? shipmentResponse.content
+            : Array.isArray(shipmentResponse?.data)
+              ? shipmentResponse.data
+              : [];
+
+        setShipments(shipmentList);
+
+        /*
+         * Read existing route information from the backend.
+         * No route is created or modified here.
+         */
+        try {
+          const routeResults = await Promise.allSettled(
+            shipmentList
+              .filter((shipment) => shipment?.id)
+              .map((shipment) =>
+                apiRequest(
+                  `/api/routes/shipment/${shipment.id}`
+                )
+              )
+          );
+
+          if (!mounted) {
+            return;
+          }
+
+          const failedRouteResult = routeResults.find(
+            (result) =>
+              result.status === "rejected" &&
+              result.reason?.status !== 404
+          );
+          if (failedRouteResult) {
+            throw failedRouteResult.reason;
+          }
+
+          const routeList = routeResults
+            .filter((result) => result.status === "fulfilled")
+            .map((result) => result.value)
+            .filter(Boolean);
+
+          setRoutes(routeList);
+        } catch (err) {
+          console.error("Business route loading error:", err);
+          setRouteError(err?.message || "Unable to load saved routes.");
+        }
+      } catch (err) {
+        if (!mounted) {
+          return;
+        }
+
+        console.error("Business shipment loading error:", err);
+        setError(err?.message || "Unable to load shipment data.");
+        setShipments([]);
+        setRoutes([]);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    }
+    };
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Get user's registered name
-  const userName =
-    user?.name ||
-    user?.fullName ||
-    user?.username ||
-    "Business Client";
+  /*
+   * ==========================================
+   * SHIPMENT COUNTS
+   * ==========================================
+   */
 
-  // First name for greeting
-  const firstName = userName.split(" ")[0];
+  const totalShipments = shipments.length;
+  const inTransitShipments = shipments.filter((shipment) =>
+    ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(
+      normalizeStatus(shipment?.status)
+    )
+  ).length;
+  const deliveredShipments = shipments.filter(
+    (shipment) => normalizeStatus(shipment?.status) === "DELIVERED"
+  ).length;
+  const failedShipments = shipments.filter(
+    (shipment) => normalizeStatus(shipment?.status) === "FAILED_DELIVERY"
+  ).length;
 
-  // First letter for avatar
-  const avatarLetter = userName.charAt(0).toUpperCase();
+  /*
+   * ==========================================
+   * ACTIVE ROUTES
+   * ==========================================
+   */
+
+  const activeRoutes = useMemo(() => {
+    return routes.filter((route) => {
+      const shipment = shipments.find(
+        (item) =>
+          Number(item?.id) ===
+          Number(route?.shipmentId)
+      );
+
+      if (!shipment) {
+        return true;
+      }
+
+      return !TERMINAL_STATUSES.includes(
+        normalizeStatus(shipment?.status)
+      );
+    });
+  }, [routes, shipments]);
+
+  /*
+   * ==========================================
+   * ACTIVE DRIVERS
+   * ==========================================
+   */
+
+  /*
+   * ==========================================
+   * RECENT SHIPMENTS
+   * ==========================================
+   */
+
+  const recentShipments = useMemo(() => {
+    return [...shipments]
+      .sort((a, b) => {
+        const dateA = new Date(
+          a?.updatedAt ||
+            a?.createdAt ||
+            0
+        ).getTime();
+
+        const dateB = new Date(
+          b?.updatedAt ||
+            b?.createdAt ||
+            0
+        ).getTime();
+
+        return dateB - dateA;
+      })
+      .slice(0, 4);
+  }, [shipments]);
+
+  /*
+   * ==========================================
+   * CUSTOMER ACTIVITY
+   * ==========================================
+   */
+
+  const customers = useMemo(() => {
+    const customerMap = new Map();
+
+    shipments.forEach((shipment) => {
+      const name = getCustomerName(
+        shipment
+      );
+
+      if (
+        !name ||
+        name === "Customer"
+      ) {
+        return;
+      }
+
+      if (!customerMap.has(name)) {
+        customerMap.set(name, {
+          name,
+          shipments: 0,
+        });
+      }
+
+      const customer =
+        customerMap.get(name);
+
+      customer.shipments += 1;
+    });
+
+    return [...customerMap.values()]
+      .sort(
+        (a, b) =>
+          b.shipments - a.shipments
+      )
+      .slice(0, 3);
+  }, [shipments]);
+
+  /*
+   * ==========================================
+   * CUSTOMER AVATAR COLORS
+   * ==========================================
+   */
+
+  const customerAvatarClasses = [
+    "orange-avatar",
+    "purple-avatar",
+    "pink-avatar",
+  ];
+
+  const userName = getUserName(user);
 
   return (
     <div className="business-dashboard">
 
-      {/* SIDEBAR */}
+      <BusinessClientSidebar />
 
-      <aside className="business-sidebar">
-
-        <div className="business-logo">
-          <div className="business-logo-icon">S</div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-        </div>
-
-        <div className="business-menu-title">
-          MAIN MENU
-        </div>
-
-        <nav className="business-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="business-nav-link active"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-nav-link"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-nav-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-nav-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="business-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-nav-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-nav-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <div className="business-sidebar-bottom">
-
-          <Link
-            to="/login"
-            className="business-logout"
-          >
-            ⇥ Logout
-          </Link>
-
-        </div>
-
-      </aside>
-
-
-      {/* MAIN */}
+      {/* ========================================
+          MAIN
+          ======================================== */}
 
       <main className="business-main">
 
-        {/* HEADER */}
+        {/* ======================================
+            HEADER
+            ====================================== */}
 
         <header className="business-header">
 
@@ -208,33 +405,22 @@ function BusinessDashboard() {
             </div>
 
             <h1>
-              Good afternoon, {firstName}
+              Good afternoon, {userName}
             </h1>
 
             <p>
-              Here's your business shipment overview for today.
+              Here's your business shipment
+              overview for today.
             </p>
 
           </div>
 
-
           <div className="business-header-right">
-
-            <Link
-              to="/business/notifications"
-              className="business-notification"
-            >
-              ♢
-              <span></span>
-            </Link>
-
-
-            {/* PROFILE */}
 
             <div className="business-profile">
 
               <div className="business-avatar">
-                {avatarLetter}
+                {getInitials(userName)}
               </div>
 
               <div className="business-profile-info">
@@ -249,9 +435,9 @@ function BusinessDashboard() {
 
               </div>
 
-              <span className="business-profile-arrow">
+              <div className="business-profile-arrow">
                 V
-              </span>
+              </div>
 
             </div>
 
@@ -259,24 +445,47 @@ function BusinessDashboard() {
 
         </header>
 
+        {/* ======================================
+            ERROR
+            ====================================== */}
 
-        {/* QUICK ACTION */}
+        {error && (
+          <div
+            style={{
+              color: "#ff8a8a",
+              fontSize: "11px",
+              marginBottom: "15px",
+            }}
+          >
+            {error}
+          </div>
+        )}
+        {profileError && (
+          <div role="status" className="business-data-notice">
+            Shipment data is available, but profile details could not be loaded:{" "}
+            {profileError}
+          </div>
+        )}
+
+        {/* ======================================
+            QUICK ACTION
+            ====================================== */}
 
         <section className="business-quick-action">
 
           <div>
 
-            <span className="quick-label">
+            <div className="quick-label">
               BUSINESS OPERATIONS
-            </span>
+            </div>
 
             <h2>
               Manage your shipments from one place
             </h2>
 
             <p>
-              Create shipments, monitor deliveries and
-              analyze logistics performance.
+              Create shipments, monitor deliveries
+              and analyze logistics performance.
             </p>
 
           </div>
@@ -285,15 +494,27 @@ function BusinessDashboard() {
             to="/business/create-shipment"
             className="create-shipment-btn"
           >
-            + Create Shipment
+            <Plus
+              size={14}
+              style={{
+                verticalAlign: "middle",
+                marginRight: "5px",
+              }}
+            />
+
+            Create Shipment
           </Link>
 
         </section>
 
+        {/* ======================================
+            STAT CARDS
+            ====================================== */}
 
-        {/* STAT CARDS */}
+        {!error && (
+        <div className="business-stats">
 
-        <section className="business-stats">
+          {/* TOTAL */}
 
           <Link
             to="/business/shipment-management"
@@ -301,21 +522,30 @@ function BusinessDashboard() {
           >
 
             <div className="business-stat-top">
-              <span>TOTAL SHIPMENTS</span>
+
+              <span>
+                TOTAL SHIPMENTS
+              </span>
 
               <div className="stat-icon orange">
-                ▣
+                <Package size={14} />
               </div>
+
             </div>
 
-            <strong>128</strong>
+            <strong>
+              {loading
+                ? "..."
+                : totalShipments}
+            </strong>
 
             <small>
-              ↑ 12.4% compared to last month
+              Actual shipments
             </small>
 
           </Link>
 
+          {/* IN TRANSIT */}
 
           <Link
             to="/business/tracking"
@@ -323,14 +553,22 @@ function BusinessDashboard() {
           >
 
             <div className="business-stat-top">
-              <span>IN TRANSIT</span>
+
+              <span>
+                IN TRANSIT
+              </span>
 
               <div className="stat-icon purple">
-                →
+                <Truck size={14} />
               </div>
+
             </div>
 
-            <strong>32</strong>
+            <strong>
+              {loading
+                ? "..."
+                : inTransitShipments}
+            </strong>
 
             <small>
               Currently moving
@@ -338,6 +576,7 @@ function BusinessDashboard() {
 
           </Link>
 
+          {/* DELIVERED */}
 
           <Link
             to="/business/delivery-performance"
@@ -345,51 +584,76 @@ function BusinessDashboard() {
           >
 
             <div className="business-stat-top">
-              <span>DELIVERED</span>
+
+              <span>
+                DELIVERED
+              </span>
 
               <div className="stat-icon green">
-                ✓
+                <CheckCircle2 size={14} />
               </div>
+
             </div>
 
-            <strong>87</strong>
+            <strong>
+              {loading
+                ? "..."
+                : deliveredShipments}
+            </strong>
 
             <small>
-              94.2% successful deliveries
+              Completed shipments
             </small>
 
           </Link>
 
+          {/* FAILED DELIVERY */}
 
           <Link
-            to="/business/delay-analysis"
+            to="/business/shipment-history"
             className="business-stat-card"
           >
 
             <div className="business-stat-top">
-              <span>DELAYED</span>
+
+              <span>
+                FAILED DELIVERY
+              </span>
 
               <div className="stat-icon pink">
-                !
+                <AlertTriangle size={14} />
               </div>
+
             </div>
 
-            <strong>09</strong>
+            <strong>
+              {loading
+                ? "..."
+                : failedShipments}
+            </strong>
 
             <small>
-              7.0% of total shipments
+              Failed delivery shipments
             </small>
 
           </Link>
 
-        </section>
+        </div>
+        )}
 
+        {/* ======================================
+            SHIPMENTS + PERFORMANCE
+            ====================================== */}
 
-        {/* RECENT SHIPMENTS */}
+        {!error && (
+        <>
+        <div className="business-content-grid">
 
-        <section className="business-content-grid">
+          {/* ====================================
+              RECENT SHIPMENTS
+              ==================================== */}
 
-          <div className="business-panel shipments-panel">
+          <section className="business-panel">
 
             <div className="business-panel-header">
 
@@ -414,309 +678,142 @@ function BusinessDashboard() {
 
             </div>
 
-
             <div className="business-shipment-list">
 
-              {shipments.map((shipment) => (
-
+              {loading ? (
                 <div
-                  className="business-shipment-row"
-                  key={shipment.id}
+                  style={{
+                    padding: "25px 20px",
+                    color: "#697185",
+                    fontSize: "10px",
+                  }}
                 >
-
-                  <div className="shipment-company-icon">
-                    □
-                  </div>
-
-
-                  <div className="shipment-main-info">
-
-                    <strong>
-                      {shipment.id}
-                    </strong>
-
-                    <span>
-                      {shipment.customer}
-                    </span>
-
-                    <small>
-                      {shipment.route}
-                    </small>
-
-                  </div>
-
-
-                  <div className="shipment-date">
-
-                    <span>
-                      Created
-                    </span>
-
-                    <strong>
-                      {shipment.date}
-                    </strong>
-
-                  </div>
-
-
-                  <div className="shipment-status-area">
-
-                    <span
-                      className={`business-status ${
-                        shipment.status
-                          .toLowerCase()
-                          .replace(" ", "-")
-                      }`}
-                    >
-                      ● {shipment.status}
-                    </span>
-
-                    <small>
-                      {shipment.eta}
-                    </small>
-
-                  </div>
-
-
-                  <Link
-                    to={`/business/tracking?trackingNumber=${shipment.id}`}
-                    className="shipment-arrow"
-                  >
-                    →
-                  </Link>
-
+                  Loading shipments...
                 </div>
-
-              ))}
-
-            </div>
-
-          </div>
-
-
-          {/* DELIVERY PERFORMANCE */}
-
-          <div className="business-panel performance-panel">
-
-            <div className="business-panel-header">
-
-              <div>
-
-                <span>
-                  PERFORMANCE
-                </span>
-
-                <h2>
-                  Delivery Performance
-                </h2>
-
-              </div>
-
-              <Link
-                to="/business/delivery-performance"
-                className="small-view-link"
-              >
-                Details
-              </Link>
-
-            </div>
-
-
-            <div className="performance-score">
-
-              <div className="score-circle">
-
-                <div>
-
-                  <strong>
-                    94%
-                  </strong>
-
-                  <span>
-                    On-time
-                  </span>
-
-                </div>
-
-              </div>
-
-
-              <div className="performance-summary">
-
-                <div>
-                  <span>On-time deliveries</span>
-                  <strong>87</strong>
-                </div>
-
-                <div>
-                  <span>Delayed deliveries</span>
-                  <strong>09</strong>
-                </div>
-
-                <div>
-                  <span>Avg. delivery time</span>
-                  <strong>2.6 days</strong>
-                </div>
-
-              </div>
-
-            </div>
-
-
-            <div className="performance-progress">
-
-              <div className="progress-header">
-
-                <span>
-                  Monthly target
-                </span>
-
-                <strong>
-                  94 / 100
-                </strong>
-
-              </div>
-
-              <div className="progress-track">
-
+              ) : recentShipments.length === 0 ? (
                 <div
-                  className="progress-value"
-                  style={{ width: "94%" }}
-                ></div>
+                  style={{
+                    padding: "25px 20px",
+                    color: "#697185",
+                    fontSize: "10px",
+                  }}
+                >
+                  No shipments available.
+                </div>
+              ) : (
+                recentShipments.map(
+                  (shipment) => {
 
-              </div>
+                    const status =
+                      normalizeStatus(
+                        shipment?.status
+                      );
+
+                    const trackingNumber =
+                      getTrackingNumber(
+                        shipment
+                      );
+
+                    return (
+                      <div
+                        className="business-shipment-row"
+                        key={
+                          shipment?.id ||
+                          trackingNumber
+                        }
+                      >
+
+                        <div className="shipment-company-icon">
+                          <Package size={15} />
+                        </div>
+
+                        <div className="shipment-main-info">
+
+                          <strong>
+                            {trackingNumber}
+                          </strong>
+
+                          {shipment?.referenceId && (
+                            <span>{shipment.referenceId}</span>
+                          )}
+
+                          {getRouteText(shipment) && (
+                            <small>{getRouteText(shipment)}</small>
+                          )}
+
+                        </div>
+
+                        <div className="shipment-date">
+
+                          <span>
+                            Updated
+                          </span>
+
+                          <strong>
+                            {formatDate(
+                              shipment?.updatedAt ||
+                                shipment?.createdAt
+                            )}
+                          </strong>
+
+                        </div>
+
+                        <div className="shipment-status-area">
+
+                          <span
+                            className={`business-status ${getStatusClass(
+                              status
+                            )}`}
+                          >
+                            ●{" "}
+                            {getStatusLabel(
+                              status
+                            )}
+                          </span>
+
+                          <small>
+                            {status === "DELIVERED"
+                              ? "Completed"
+                              : status ===
+                                  "FAILED_DELIVERY"
+                                ? "Attention required"
+                                : "Current status"}
+                          </small>
+
+                        </div>
+
+                        <Link
+                          to={`/business/tracking?trackingNumber=${encodeURIComponent(
+                            trackingNumber
+                          )}`}
+                          className="shipment-arrow"
+                        >
+                          <ArrowRight size={15} />
+                        </Link>
+
+                      </div>
+                    );
+                  }
+                )
+              )}
 
             </div>
 
-          </div>
+          </section>
 
-        </section>
+        </div>
 
+        {/* ======================================
+            ANALYTICS
+            ====================================== */}
 
-        {/* ANALYTICS */}
+        <div className="business-analytics-grid">
 
-        <section className="business-analytics-grid">
+          {/* ====================================
+              LOGISTICS
+              ==================================== */}
 
-          {/* DELAY ANALYSIS */}
-
-          <div className="business-panel analytics-panel">
-
-            <div className="business-panel-header">
-
-              <div>
-
-                <span>
-                  ANALYTICS
-                </span>
-
-                <h2>
-                  Delay Analysis
-                </h2>
-
-              </div>
-
-              <Link
-                to="/business/delay-analysis"
-                className="small-view-link"
-              >
-                View analysis
-              </Link>
-
-            </div>
-
-
-            <div className="delay-content">
-
-              <div className="delay-main-number">
-
-                <strong>
-                  09
-                </strong>
-
-                <span>
-                  Delayed shipments
-                </span>
-
-              </div>
-
-
-              <div className="delay-bars">
-
-                <div className="delay-bar-row">
-
-                  <span>
-                    Traffic
-                  </span>
-
-                  <div className="delay-track">
-
-                    <div
-                      className="delay-value"
-                      style={{ width: "72%" }}
-                    ></div>
-
-                  </div>
-
-                  <strong>
-                    72%
-                  </strong>
-
-                </div>
-
-
-                <div className="delay-bar-row">
-
-                  <span>
-                    Weather
-                  </span>
-
-                  <div className="delay-track">
-
-                    <div
-                      className="delay-value"
-                      style={{ width: "48%" }}
-                    ></div>
-
-                  </div>
-
-                  <strong>
-                    48%
-                  </strong>
-
-                </div>
-
-
-                <div className="delay-bar-row">
-
-                  <span>
-                    Operations
-                  </span>
-
-                  <div className="delay-track">
-
-                    <div
-                      className="delay-value"
-                      style={{ width: "34%" }}
-                    ></div>
-
-                  </div>
-
-                  <strong>
-                    34%
-                  </strong>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-          {/* LOGISTICS OVERVIEW */}
-
-          <div className="business-panel analytics-panel">
+          <section className="business-panel analytics-panel">
 
             <div className="business-panel-header">
 
@@ -741,7 +838,6 @@ function BusinessDashboard() {
 
             </div>
 
-
             <div className="logistics-grid">
 
               <div className="logistics-item">
@@ -751,58 +847,25 @@ function BusinessDashboard() {
                 </span>
 
                 <strong>
-                  18
+                  {activeRoutes.length}
                 </strong>
-
-              </div>
-
-
-              <div className="logistics-item">
-
-                <span>
-                  ACTIVE DRIVERS
-                </span>
-
-                <strong>
-                  42
-                </strong>
-
-              </div>
-
-
-              <div className="logistics-item">
-
-                <span>
-                  TOTAL DISTANCE
-                </span>
-
-                <strong>
-                  8,420 km
-                </strong>
-
-              </div>
-
-
-              <div className="logistics-item">
-
-                <span>
-                  ROUTE EFFICIENCY
-                </span>
-
-                <strong>
-                  91%
-                </strong>
+                {routeError && (
+                  <small role="status">
+                    Route details unavailable: {routeError}
+                  </small>
+                )}
 
               </div>
 
             </div>
 
-          </div>
+          </section>
 
+          {/* ====================================
+              CUSTOMER ACTIVITY
+              ==================================== */}
 
-          {/* CUSTOMER ACTIVITY */}
-
-          <div className="business-panel customer-activity-panel">
+          <section className="business-panel analytics-panel customer-activity-panel">
 
             <div className="business-panel-header">
 
@@ -827,85 +890,77 @@ function BusinessDashboard() {
 
             </div>
 
-
             <div className="customer-activity">
 
-              <div className="customer-row">
+              {customers.length === 0 ? (
 
-                <div className="customer-avatar orange-avatar">
-                  T
+                <div
+                  style={{
+                    padding: "20px 0",
+                    color: "#626a7c",
+                    fontSize: "9px",
+                  }}
+                >
+                  No customer shipment records.
                 </div>
 
-                <div>
-                  <strong>
-                    TechNova Pvt Ltd
-                  </strong>
+              ) : (
 
-                  <span>
-                    24 shipments
-                  </span>
-                </div>
+                customers.map(
+                  (customer, index) => (
 
-                <b>
-                  96%
-                </b>
+                    <div
+                      className="customer-row"
+                      key={customer.name}
+                    >
 
-              </div>
+                      <div
+                        className={`customer-avatar ${
+                          customerAvatarClasses[
+                            index %
+                              customerAvatarClasses.length
+                          ]
+                        }`}
+                      >
+                        {getInitials(
+                          customer.name
+                        )}
+                      </div>
 
+                      <div>
 
-              <div className="customer-row">
+                        <strong>
+                          {customer.name}
+                        </strong>
 
-                <div className="customer-avatar purple-avatar">
-                  U
-                </div>
+                        <span>
+                          {customer.shipments} shipment
+                          {customer.shipments !==
+                          1
+                            ? "s"
+                            : ""}
+                        </span>
 
-                <div>
-                  <strong>
-                    UrbanMart
-                  </strong>
+                      </div>
 
-                  <span>
-                    18 shipments
-                  </span>
-                </div>
+                    </div>
 
-                <b>
-                  93%
-                </b>
+                  )
+                )
 
-              </div>
-
-
-              <div className="customer-row">
-
-                <div className="customer-avatar pink-avatar">
-                  G
-                </div>
-
-                <div>
-                  <strong>
-                    GreenLeaf Foods
-                  </strong>
-
-                  <span>
-                    15 shipments
-                  </span>
-                </div>
-
-                <b>
-                  91%
-                </b>
-
-              </div>
+              )}
 
             </div>
 
-          </div>
+          </section>
 
-        </section>
+        </div>
+        </>
+        )}
 
-
-        {/* REPORTS */}
+        {/* ======================================
+            REPORT BANNER
+            ====================================== */}
 
         <section className="business-report-banner">
 
@@ -920,8 +975,7 @@ function BusinessDashboard() {
             </h2>
 
             <p>
-              Generate shipment, delivery, route and
-              delay reports for your business.
+              Generate a shipment report from your current shipment records.
             </p>
 
           </div>
@@ -930,16 +984,25 @@ function BusinessDashboard() {
             to="/business/reports"
             className="report-btn"
           >
-            Open Reports →
+            Open Reports
+            <ArrowRight
+              size={13}
+              style={{
+                verticalAlign: "middle",
+                marginLeft: "5px",
+              }}
+            />
           </Link>
 
         </section>
 
-
-        {/* FOOTER */}
+        {/* ======================================
+            FOOTER
+            ====================================== */}
 
         <footer className="business-footer">
-          © 2026 ShipTrack Pro · Integrated Logistics Intelligence Platform
+          © 2026 ShipTrack Pro · Integrated Logistics
+          Intelligence Platform
         </footer>
 
       </main>

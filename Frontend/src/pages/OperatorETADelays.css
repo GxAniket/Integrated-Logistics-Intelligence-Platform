@@ -158,9 +158,7 @@
 }
 
 .eta-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: block;
   margin-bottom: 32px;
 }
 
@@ -181,57 +179,6 @@
   margin: 0;
   color: #7d879d;
   font-size: 14px;
-}
-
-.eta-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-
-.eta-live-status {
-  border: 1px solid rgba(49, 211, 143, 0.25);
-  background: rgba(49, 211, 143, 0.06);
-  color: #4de0a0;
-  border-radius: 11px;
-  padding: 11px 15px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.eta-live-status span {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #36d991;
-  margin-right: 8px;
-}
-
-.eta-notification {
-  position: relative;
-  width: 43px;
-  height: 43px;
-  border: 1px solid #242936;
-  border-radius: 11px;
-  background: #10131d;
-  color: #dbe0ed;
-  cursor: pointer;
-}
-
-.eta-notification span {
-  position: absolute;
-  top: -6px;
-  right: -5px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #ff496d;
-  color: white;
-  font-size: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ================= STATS ================= */
@@ -737,7 +684,7 @@
 
 .eta-bottom-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -779,11 +726,6 @@
   color: #596277;
   font-size: 9px;
   margin-top: 4px;
-}
-
-.eta-insight-card.success .eta-insight-icon {
-  color: #42d99d;
-  background: rgba(42, 215, 151, 0.1);
 }
 
 /* ================= RESPONSIVE ================= */
@@ -829,11 +771,6 @@
     margin-left: 0;
     width: 100%;
     padding: 20px;
-  }
-
-  .eta-header {
-    flex-direction: column;
-    gap: 20px;
   }
 
   .eta-stats {

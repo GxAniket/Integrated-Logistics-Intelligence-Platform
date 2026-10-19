@@ -233,73 +233,12 @@
   font-size: 13px;
 }
 
-.driver-live-badge {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 10px;
-  border-radius: 20px;
-  background: rgba(25, 214, 162, 0.08);
-  border: 1px solid rgba(25, 214, 162, 0.16);
-  color: #35e0b1;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-}
-
-.driver-live-badge span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #2ee3ae;
-  box-shadow: 0 0 9px #2ee3ae;
-}
-
-.driver-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.driver-icon-btn,
-.driver-refresh,
 .center-driver-map,
 .driver-filter {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #10131d;
   color: #bfc4d1;
   cursor: pointer;
-}
-
-.driver-icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.driver-icon-btn i {
-  width: 6px;
-  height: 6px;
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  border-radius: 50%;
-  background: #ff5f6d;
-}
-
-.driver-refresh {
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: #3cddb0;
 }
 
 /* =========================

@@ -200,7 +200,7 @@
 .hero {
   position: relative;
 
-  min-height: 820px;
+  min-height: 100vh;
 
   padding:
     150px 7%
@@ -313,9 +313,9 @@
 
   z-index: 5;
 
-  width: 48%;
+  width: 56%;
 
-  max-width: 600px;
+  max-width: 740px;
 }
 
 
@@ -409,6 +409,199 @@
   font-size: 13px;
 
   line-height: 1.8;
+}
+
+
+/* =========================================================
+   SHARED JOURNEY
+========================================================= */
+
+.journey-card {
+  position: absolute;
+
+  z-index: 5;
+
+  top: 50%;
+  right: 7%;
+
+  width: min(360px, 32vw);
+  padding: 24px;
+
+  transform: translateY(-50%) rotate(1deg);
+
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 20px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(25,28,43,0.93),
+      rgba(10,13,23,0.92)
+    );
+
+  backdrop-filter: blur(22px);
+
+  box-shadow:
+    0 35px 80px rgba(0,0,0,0.42);
+
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+
+.journey-card:hover {
+  transform: translateY(calc(-50% - 5px)) rotate(0deg);
+  border-color: rgba(255,255,255,0.22);
+}
+
+
+.journey-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+.journey-card-icon {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(167,139,250,0.25);
+  border-radius: 12px;
+
+  color: #c4b5fd;
+  background: rgba(139,92,246,0.15);
+}
+
+
+.journey-card-heading > div:last-child > span {
+  color: #8f96a8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+
+.journey-card-heading h2 {
+  margin: 5px 0 0;
+  color: #f8fafc;
+  font-size: 16px;
+  letter-spacing: -0.35px;
+}
+
+
+.journey-card-intro {
+  margin: 19px 0 0;
+  color: #969eaf;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+
+.journey-steps {
+  position: relative;
+
+  display: grid;
+  gap: 17px;
+
+  margin: 22px 0 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+
+.journey-steps::before {
+  content: "";
+
+  position: absolute;
+
+  top: 23px;
+  bottom: 23px;
+  left: 17px;
+
+  border-left: 1px dashed rgba(255,255,255,0.2);
+}
+
+
+.journey-steps li {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+.journey-step-icon {
+  width: 35px;
+  height: 35px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 50%;
+
+  background: #111522;
+}
+
+
+.journey-step-business {
+  color: #fb923c;
+  border-color: rgba(249,115,22,0.3);
+}
+
+
+.journey-step-operations {
+  color: #a78bfa;
+  border-color: rgba(139,92,246,0.3);
+}
+
+
+.journey-step-customer {
+  color: #2dd4bf;
+  border-color: rgba(20,184,166,0.3);
+}
+
+
+.journey-steps strong {
+  display: block;
+  color: #e9ebf1;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+.journey-steps small {
+  display: block;
+  margin-top: 4px;
+  color: #81899a;
+  font-size: 8px;
+}
+
+
+.journey-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-top: 21px;
+  padding-top: 15px;
+
+  border-top: 1px solid rgba(255,255,255,0.08);
+
+  color: #ff9a5c;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 
@@ -1804,13 +1997,8 @@
 
 @media (max-width: 1050px) {
 
-  .shipment-widget {
-    width: 45vw;
-    right: 3%;
-  }
-
   .hero-content {
-    width: 50%;
+    width: 100%;
   }
 
   .feature-grid {
@@ -1826,6 +2014,37 @@
 }
 
 
+@media (max-width: 1150px) {
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .hero-content {
+    width: 100%;
+  }
+
+  .journey-card {
+    position: relative;
+
+    top: auto;
+    right: auto;
+
+    width: min(100%, 460px);
+    margin-top: 32px;
+
+    transform: none;
+  }
+
+  .journey-card:hover {
+    transform: translateY(-3px);
+  }
+
+}
+
+
 @media (max-width: 850px) {
 
   .home-nav {
@@ -1833,9 +2052,7 @@
   }
 
   .hero {
-    min-height: 1100px;
-
-    display: block;
+    min-height: 100vh;
 
     padding:
       145px 7%
@@ -1845,28 +2062,7 @@
   .hero-content {
     width: 100%;
 
-    max-width: 650px;
-  }
-
-  .shipment-widget {
-    position: relative;
-
-    top: auto;
-    right: auto;
-
-    width: 100%;
-
-    max-width: 600px;
-
-    margin:
-      70px auto
-      0;
-
-    transform: none;
-  }
-
-  .shipment-widget:hover {
-    transform: translateY(-5px);
+    max-width: 740px;
   }
 
   .stats-section {
@@ -1945,7 +2141,7 @@
   }
 
   .hero {
-    min-height: 1060px;
+    min-height: 100vh;
 
     padding:
       120px 20px

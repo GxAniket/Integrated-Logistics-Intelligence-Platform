@@ -1,15 +1,21 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./CreateShipment.css";
 import { apiRequest } from "../api";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 
 function CreateShipment() {
   const navigate = useNavigate();
-
-  // Get currently logged-in user
-  const user = JSON.parse(
-    localStorage.getItem("shiptrackUser") || "null"
-  );
+  const [searchParams] = useSearchParams();
+  const editingId = searchParams.get("edit");
+  const [user, setUser] = useState(null);
+  const [operators, setOperators] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState("");
+  const [operatorLoadError, setOperatorLoadError] = useState("");
+  const [customerLoadError, setCustomerLoadError] = useState("");
+  const [shipmentLoading, setShipmentLoading] = useState(Boolean(editingId));
 
   const userName =
     user?.fullName ||
@@ -23,35 +29,124 @@ function CreateShipment() {
     referenceId: "",
     senderName: "",
     senderPhone: "",
-    senderEmail: "",
     senderAddress: "",
-    senderCity: "",
-    senderState: "",
-    senderPincode: "",
-
     receiverName: "",
     receiverPhone: "",
-    receiverEmail: "",
     receiverAddress: "",
-    receiverCity: "",
-    receiverState: "",
-    receiverPincode: "",
-
-    packageType: "Box",
+    packageType: "",
     weight: "",
-    length: "",
-    width: "",
-    height: "",
     quantity: "1",
-
-    pickupDate: "",
-    expectedDelivery: "",
-    priority: "Standard",
-    transportMode: "Road",
+    customerId: "",
+    assignedOperatorId: "",
   });
 
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFormData() {
+      const [userResult, operatorsResult, customersResult] =
+        await Promise.allSettled([
+          apiRequest("/api/users/me"),
+          apiRequest("/api/users/operators"),
+          apiRequest("/api/users/customers"),
+        ]);
+      if (!active) return;
+
+      if (userResult.status === "fulfilled") {
+        setUser(userResult.value);
+      } else {
+        console.error("Load business profile error:", userResult.reason);
+        setProfileLoadError(
+          `Unable to load business profile: ${userResult.reason.message}`
+        );
+      }
+
+      if (operatorsResult.status === "fulfilled") {
+        setOperators(
+          Array.isArray(operatorsResult.value) ? operatorsResult.value : []
+        );
+      } else {
+        console.error("Load logistics operators error:", operatorsResult.reason);
+        setOperatorLoadError(
+          `Unable to load logistics operators: ${operatorsResult.reason.message}`
+        );
+      }
+
+      if (customersResult.status === "fulfilled") {
+        if (!Array.isArray(customersResult.value)) {
+          console.error(
+            "Unexpected response while loading customer accounts:",
+            customersResult.value
+          );
+          setCustomerLoadError(
+            "Unable to load customer accounts: unexpected API response."
+          );
+        } else {
+          setCustomers(
+            customersResult.value.filter(
+              (customer) =>
+                customer?.id != null && customer?.role === "CUSTOMER"
+            )
+          );
+        }
+      } else {
+        console.error(
+          "Load customer accounts error:",
+          customersResult.reason
+        );
+        setCustomerLoadError(
+          `Unable to load customer accounts: ${customersResult.reason.message}`
+        );
+      }
+      setCustomersLoading(false);
+    }
+
+    loadFormData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!editingId) return undefined;
+    let active = true;
+
+    async function loadShipment() {
+      try {
+        const shipment = await apiRequest(`/api/shipments/${editingId}`);
+        if (!active) return;
+
+        setFormData((previous) => ({
+          ...previous,
+          referenceId: shipment.referenceId || "",
+          senderName: shipment.senderName || "",
+          senderPhone: shipment.senderPhone || "",
+          senderAddress: shipment.senderAddress || "",
+          receiverName: shipment.receiverName || "",
+          receiverPhone: shipment.receiverPhone || "",
+          receiverAddress: shipment.receiverAddress || "",
+          packageType: shipment.packageDescription || "",
+          weight: shipment.packageWeightKg ?? "",
+          quantity: "",
+          customerId: shipment.customerId ?? "",
+          assignedOperatorId: shipment.assignedOperatorId || "",
+        }));
+      } catch (error) {
+        console.error("Failed to load shipment for editing:", error);
+        if (active) setMessage(`Error: ${error.message}`);
+      } finally {
+        if (active) setShipmentLoading(false);
+      }
+    }
+
+    loadShipment();
+    return () => {
+      active = false;
+    };
+  }, [editingId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,14 +161,7 @@ function CreateShipment() {
     e.preventDefault();
 
     try {
-      const loggedInUser = JSON.parse(
-        localStorage.getItem("shiptrackUser") || "null"
-      );
-
-      if (
-        !loggedInUser?.id ||
-        loggedInUser.role !== "BUSINESS_CLIENT"
-      ) {
+      if (!user?.id || user.role !== "BUSINESS_CLIENT") {
         alert(
           "Please login as a Business Client before creating a shipment."
         );
@@ -81,49 +169,72 @@ function CreateShipment() {
         return;
       }
 
+      if (
+        !formData.senderName.trim() ||
+        !formData.senderPhone.trim() ||
+        !formData.senderAddress.trim() ||
+        !formData.receiverName.trim() ||
+        !formData.receiverPhone.trim() ||
+        !formData.receiverAddress.trim()
+      ) {
+        setMessage("Error: Complete all required sender and receiver fields.");
+        return;
+      }
+
+      if (
+        formData.weight !== "" &&
+        (!Number.isFinite(Number(formData.weight)) ||
+          Number(formData.weight) <= 0)
+      ) {
+        setMessage("Error: Package weight must be greater than zero.");
+        return;
+      }
+
+      const selectedCustomer = formData.customerId
+        ? customers.find(
+            (customer) => String(customer.id) === String(formData.customerId)
+          )
+        : null;
+      if (formData.customerId && !selectedCustomer) {
+        setMessage("Error: Select a valid Customer account.");
+        return;
+      }
+
       setIsSubmitting(true);
 
-      const fullSenderAddress = [
-        formData.senderAddress.trim(),
-        formData.senderCity.trim(),
-        formData.senderState.trim(),
-        formData.senderPincode.trim(),
-      ]
-        .filter(Boolean)
-        .join(", ") || formData.senderAddress.trim();
-
-      const fullReceiverAddress = [
-        formData.receiverAddress.trim(),
-        formData.receiverCity.trim(),
-        formData.receiverState.trim(),
-        formData.receiverPincode.trim(),
-      ]
-        .filter(Boolean)
-        .join(", ") || formData.receiverAddress.trim();
-
       const payload = {
-        customerId: null,
-        assignedOperatorId: null,
+        assignedOperatorId: formData.assignedOperatorId
+          ? Number(formData.assignedOperatorId)
+          : null,
+        referenceId: formData.referenceId.trim() || null,
 
         senderName: formData.senderName.trim(),
         senderPhone: formData.senderPhone.trim(),
-        senderAddress: fullSenderAddress,
+        senderAddress: formData.senderAddress.trim(),
 
         receiverName: formData.receiverName.trim(),
         receiverPhone: formData.receiverPhone.trim(),
-        receiverAddress: fullReceiverAddress,
+        receiverAddress: formData.receiverAddress.trim(),
 
-        packageDescription: `${formData.packageType} x${formData.quantity}`,
-        packageWeightKg: Number(formData.weight) || 1,
+        packageDescription:
+          editingId || !formData.quantity
+          ? formData.packageType.trim()
+          : `${formData.packageType.trim()} x${formData.quantity}`,
+        packageWeightKg:
+          formData.weight === "" ? null : Number(formData.weight),
+        customerId: selectedCustomer ? Number(selectedCustomer.id) : null,
       };
 
-      const data = await apiRequest("/api/shipments", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const data = await apiRequest(
+        editingId ? `/api/shipments/${editingId}` : "/api/shipments",
+        {
+          method: editingId ? "PUT" : "POST",
+          body: JSON.stringify(payload),
+        }
+      );
 
       setMessage(
-        `Shipment created successfully! Tracking ID: ${data.trackingNumber}`
+        `${editingId ? "Shipment updated" : "Shipment created"} successfully! Tracking number: ${data.trackingNumber}`
       );
 
       setTimeout(() => {
@@ -140,127 +251,7 @@ function CreateShipment() {
   return (
     <div className="create-shipment-page">
 
-      {/* SIDEBAR */}
-
-      <aside className="create-sidebar">
-
-        <div className="create-logo">
-
-          <div className="create-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-
-        </div>
-
-        <div className="create-menu-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav className="create-navigation">
-
-          <Link
-            to="/dashboard/business"
-            className="create-nav-link"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="create-nav-link active"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="create-nav-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="create-nav-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="create-nav-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className="create-nav-link"
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="create-nav-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="create-nav-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="create-nav-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="create-nav-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="create-nav-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <Link
-          to="/login"
-          className="create-logout"
-        >
-          ⇥ Logout
-        </Link>
-
-      </aside>
+      <BusinessClientSidebar />
 
 
       {/* MAIN */}
@@ -309,9 +300,30 @@ function CreateShipment() {
         {/* SUCCESS MESSAGE */}
 
         {message && (
-          <div className="create-success">
-            <span>✓</span>
+          <div
+            className={`create-success ${message.startsWith("Error:") ? "create-error" : ""}`}
+            role={message.startsWith("Error:") ? "alert" : "status"}
+          >
+            <span>{message.startsWith("Error:") ? "!" : "✓"}</span>
             {message}
+          </div>
+        )}
+
+        {profileLoadError && (
+          <div className="create-success create-error" role="alert">
+            {profileLoadError}
+          </div>
+        )}
+
+        {operatorLoadError && (
+          <div className="create-success create-error" role="alert">
+            {operatorLoadError}
+          </div>
+        )}
+
+        {customerLoadError && (
+          <div className="create-success create-error" role="alert">
+            {customerLoadError}
           </div>
         )}
 
@@ -361,7 +373,7 @@ function CreateShipment() {
                   name="referenceId"
                   value={formData.referenceId}
                   onChange={handleChange}
-                  placeholder="e.g. ORD-2026-001"
+                  placeholder="Enter reference or order ID"
                   required
                 />
 
@@ -428,41 +440,7 @@ function CreateShipment() {
                   name="senderPhone"
                   value={formData.senderPhone}
                   onChange={handleChange}
-                  placeholder="+91 98765 43210"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  name="senderEmail"
-                  value={formData.senderEmail}
-                  onChange={handleChange}
-                  placeholder="sender@example.com"
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Pincode
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="senderPincode"
-                  value={formData.senderPincode}
-                  onChange={handleChange}
-                  placeholder="500001"
+                  placeholder="Enter sender phone number"
                   required
                 />
 
@@ -481,42 +459,6 @@ function CreateShipment() {
                   value={formData.senderAddress}
                   onChange={handleChange}
                   placeholder="Enter complete pickup address"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  City
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="senderCity"
-                  value={formData.senderCity}
-                  onChange={handleChange}
-                  placeholder="Hyderabad"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  State
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="senderState"
-                  value={formData.senderState}
-                  onChange={handleChange}
-                  placeholder="Telangana"
                   required
                 />
 
@@ -583,41 +525,7 @@ function CreateShipment() {
                   name="receiverPhone"
                   value={formData.receiverPhone}
                   onChange={handleChange}
-                  placeholder="+91 98765 43210"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  name="receiverEmail"
-                  value={formData.receiverEmail}
-                  onChange={handleChange}
-                  placeholder="receiver@example.com"
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Pincode
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="receiverPincode"
-                  value={formData.receiverPincode}
-                  onChange={handleChange}
-                  placeholder="560001"
+                  placeholder="Enter receiver phone number"
                   required
                 />
 
@@ -636,42 +544,6 @@ function CreateShipment() {
                   value={formData.receiverAddress}
                   onChange={handleChange}
                   placeholder="Enter complete delivery address"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  City
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="receiverCity"
-                  value={formData.receiverCity}
-                  onChange={handleChange}
-                  placeholder="Bangalore"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  State
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="text"
-                  name="receiverState"
-                  value={formData.receiverState}
-                  onChange={handleChange}
-                  placeholder="Karnataka"
                   required
                 />
 
@@ -700,7 +572,7 @@ function CreateShipment() {
                 </h2>
 
                 <p>
-                  Enter package dimensions and weight.
+                  Enter the package description and weight.
                 </p>
               </div>
 
@@ -711,19 +583,17 @@ function CreateShipment() {
               <div className="form-field">
 
                 <label>
-                  Package Type
+                  Package Description
                 </label>
 
-                <select
+                <input
+                  type="text"
                   name="packageType"
                   value={formData.packageType}
                   onChange={handleChange}
-                >
-                  <option value="Box">Box</option>
-                  <option value="Envelope">Envelope</option>
-                  <option value="Pallet">Pallet</option>
-                  <option value="Crate">Crate</option>
-                </select>
+                  placeholder="Describe the package"
+                  required
+                />
 
               </div>
 
@@ -747,69 +617,16 @@ function CreateShipment() {
 
                 <label>
                   Weight (kg)
-                  <span>*</span>
                 </label>
 
                 <input
                   type="number"
-                  min="0"
+                  min="0.1"
                   step="0.1"
                   name="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="e.g. 5.5"
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Length (cm)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  name="length"
-                  value={formData.length}
-                  onChange={handleChange}
-                  placeholder="40"
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Width (cm)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  name="width"
-                  value={formData.width}
-                  onChange={handleChange}
-                  placeholder="30"
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Height (cm)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  name="height"
-                  value={formData.height}
-                  onChange={handleChange}
-                  placeholder="20"
+                  placeholder="Enter package weight"
                 />
 
               </div>
@@ -818,8 +635,7 @@ function CreateShipment() {
 
           </section>
 
-
-          {/* DELIVERY */}
+          {/* LOGISTICS OPERATOR */}
 
           <section className="form-section">
 
@@ -830,107 +646,84 @@ function CreateShipment() {
               </div>
 
               <div>
-                <span>DELIVERY</span>
+                <span>ASSIGNMENT</span>
 
                 <h2>
-                  Delivery Details
+                  Shipment Assignment
                 </h2>
 
-                <p>
-                  Select delivery preferences and schedule.
-                </p>
+                <p>Optionally assign a customer account or logistics operator.</p>
               </div>
 
             </div>
 
-            <div className="form-grid">
+            <div className="form-grid one-column">
 
               <div className="form-field">
-
-                <label>
-                  Pickup Date
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="date"
-                  name="pickupDate"
-                  value={formData.pickupDate}
-                  onChange={handleChange}
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Expected Delivery
-                  <span>*</span>
-                </label>
-
-                <input
-                  type="date"
-                  name="expectedDelivery"
-                  value={formData.expectedDelivery}
-                  onChange={handleChange}
-                  required
-                />
-
-              </div>
-
-              <div className="form-field">
-
-                <label>
-                  Delivery Priority
+                <label htmlFor="customerId">
+                  Assign Customer Account (optional)
                 </label>
 
                 <select
-                  name="priority"
-                  value={formData.priority}
+                  id="customerId"
+                  name="customerId"
+                  value={formData.customerId}
                   onChange={handleChange}
+                  disabled={
+                    customersLoading ||
+                    customerLoadError !== "" ||
+                    customers.length === 0
+                  }
                 >
-                  <option value="Standard">
-                    Standard
+                  <option value="">
+                    {customersLoading
+                      ? "Loading customer accounts..."
+                      : customerLoadError
+                        ? "Customer accounts unavailable"
+                        : customers.length === 0
+                          ? "No customer accounts available"
+                          : "Select a customer"}
                   </option>
-
-                  <option value="Express">
-                    Express
-                  </option>
-
-                  <option value="Urgent">
-                    Urgent
-                  </option>
+                  {customers.map((customer) => (
+                    <option
+                      key={customer.id}
+                      value={customer.id}
+                    >
+                      {customer.fullName}
+                      {customer.email ? ` (${customer.email})` : ""}
+                    </option>
+                  ))}
                 </select>
 
               </div>
 
               <div className="form-field">
 
-                <label>
-                  Transport Mode
+                <label htmlFor="assignedOperatorId">
+                  Assign Logistics Operator
                 </label>
 
                 <select
-                  name="transportMode"
-                  value={formData.transportMode}
+                  id="assignedOperatorId"
+                  name="assignedOperatorId"
+                  value={formData.assignedOperatorId}
                   onChange={handleChange}
+                  disabled={operatorLoadError !== "" || operators.length === 0}
                 >
-                  <option value="Road">
-                    Road
+                  <option value="">
+                    {operatorLoadError
+                      ? "Operators unavailable"
+                      : operators.length === 0
+                        ? "No operators available"
+                        : "Select an operator"}
                   </option>
 
-                  <option value="Rail">
-                    Rail
-                  </option>
-
-                  <option value="Air">
-                    Air
-                  </option>
-
-                  <option value="Sea">
-                    Sea
-                  </option>
+                  {operators.map((operator) => (
+                    <option key={operator.id} value={operator.id}>
+                      {operator.fullName}
+                      {operator.email ? ` (${operator.email})` : ""}
+                    </option>
+                  ))}
                 </select>
 
               </div>
@@ -954,9 +747,11 @@ function CreateShipment() {
             <button
               type="submit"
               className="submit-shipment-btn"
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting || shipmentLoading || !user || Boolean(profileLoadError)
+              }
               style={
-                isSubmitting
+                isSubmitting || shipmentLoading || !user || profileLoadError
                   ? {
                       opacity: 0.7,
                       cursor: "not-allowed",
@@ -965,8 +760,8 @@ function CreateShipment() {
               }
             >
               {isSubmitting
-                ? "Creating Shipment..."
-                : "Create Shipment →"}
+                ? (editingId ? "Updating Shipment..." : "Creating Shipment...")
+                : (editingId ? "Update Shipment →" : "Create Shipment →")}
             </button>
 
           </div>

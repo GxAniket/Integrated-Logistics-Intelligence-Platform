@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export async function apiRequest(path, options = {}) {
   const token = localStorage.getItem("shiptrackToken");
@@ -18,7 +19,7 @@ export async function apiRequest(path, options = {}) {
   });
 
   const text = await response.text();
-  let data = null;
+  let data;
 
   try {
     data = text ? JSON.parse(text) : null;
@@ -27,13 +28,23 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // Token missing, invalid, or expired — clear the stale session so the
+      // user isn't left in a state where the UI thinks they're logged in
+      // but every API call keeps failing.
+      localStorage.removeItem("shiptrackToken");
+      localStorage.removeItem("shiptrackUser");
+    }
+
     const message =
       data?.message ||
       data?.error ||
       data ||
       `Request failed with status ${response.status}`;
 
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return data;

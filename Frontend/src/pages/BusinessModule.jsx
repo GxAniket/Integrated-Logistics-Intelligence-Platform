@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import BusinessClientSidebar from "../components/BusinessClientSidebar";
 import "./BusinessModule.css";
 
 function BusinessModule() {
@@ -24,125 +25,7 @@ function BusinessModule() {
   return (
     <div className="business-module-page">
 
-      <aside className="business-module-sidebar">
-
-        <div className="business-module-logo">
-          <div className="business-module-logo-icon">
-            S
-          </div>
-
-          <div>
-            <h2>ShipTrack Pro</h2>
-            <span>LOGISTICS INTELLIGENCE</span>
-          </div>
-        </div>
-
-        <div className="business-module-menu-title">
-          BUSINESS CLIENT
-        </div>
-
-        <nav>
-
-          <Link
-            to="/dashboard/business"
-            className="business-module-link"
-          >
-            <span>⌂</span>
-            Overview
-          </Link>
-
-          <Link
-            to="/business/create-shipment"
-            className="business-module-link"
-          >
-            <span>＋</span>
-            Create Shipment
-          </Link>
-
-          <Link
-            to="/business/shipment-management"
-            className="business-module-link"
-          >
-            <span>▣</span>
-            Shipment Management
-          </Link>
-
-          <Link
-            to="/business/shipment-history"
-            className="business-module-link"
-          >
-            <span>◷</span>
-            Shipment History
-          </Link>
-
-          <Link
-            to="/business/package-information"
-            className="business-module-link"
-          >
-            <span>□</span>
-            Package Information
-          </Link>
-
-          <Link
-            to="/business/tracking"
-            className={`business-module-link ${
-              pageTitle === "Tracking" ? "active" : ""
-            }`}
-          >
-            <span>⌖</span>
-            Tracking
-          </Link>
-
-          <Link
-            to="/business/delivery-performance"
-            className="business-module-link"
-          >
-            <span>↗</span>
-            Delivery Performance
-          </Link>
-
-          <Link
-            to="/business/delay-analysis"
-            className="business-module-link"
-          >
-            <span>!</span>
-            Delay Analysis
-          </Link>
-
-          <Link
-            to="/business/logistics-overview"
-            className="business-module-link"
-          >
-            <span>◎</span>
-            Logistics Overview
-          </Link>
-
-          <Link
-            to="/business/customer-activity"
-            className="business-module-link"
-          >
-            <span>♙</span>
-            Customer Activity
-          </Link>
-
-          <Link
-            to="/business/reports"
-            className="business-module-link"
-          >
-            <span>▥</span>
-            Reports & Export
-          </Link>
-
-        </nav>
-
-        <Link
-          to="/login"
-          className="business-module-logout"
-        >
-          ⇥ Logout
-        </Link>
-
-      </aside>
+      <BusinessClientSidebar />
 
 
       <main className="business-module-main">
