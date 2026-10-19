@@ -43,7 +43,7 @@ public class ForecastService {
                         new ResourceNotFoundException(
                                 "Shipment not found with ID: " + shipmentId));
 
-        Route route = routeRepository.findByShipmentId(shipmentId)
+        Route route = routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(shipmentId)
                 .orElse(null);
 
         if (shipment.getStatus() == ShipmentStatus.DELIVERED
@@ -65,6 +65,7 @@ public class ForecastService {
         forecast.setShipment(shipment);
         forecast.setPredictedDeliveryTime(
                 LocalDateTime.now().plusMinutes(route.getEstimatedDurationMinutes()));
+        forecast.setConfidence(0.75);
         forecast.setPredictedStatus(shipment.getStatus());
 
         return forecastRepository.save(forecast);

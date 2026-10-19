@@ -1,26 +1,31 @@
 package com.shiptrack.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.shiptrack.entity.Forecast;
 import com.shiptrack.entity.Shipment;
 import com.shiptrack.enums.ShipmentStatus;
 
 import java.time.LocalDateTime;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ForecastResponse {
 
     private Long id;
     private ShipmentSummary shipment;
     private LocalDateTime predictedDeliveryTime;
+    private Double confidence;
     private ShipmentStatus predictedStatus;
     private LocalDateTime createdAt;
 
     public ForecastResponse(Long id, ShipmentSummary shipment,
                             LocalDateTime predictedDeliveryTime,
+                            Double confidence,
                             ShipmentStatus predictedStatus,
                             LocalDateTime createdAt) {
         this.id = id;
         this.shipment = shipment;
         this.predictedDeliveryTime = predictedDeliveryTime;
+        this.confidence = confidence;
         this.predictedStatus = predictedStatus;
         this.createdAt = createdAt;
     }
@@ -40,6 +45,7 @@ public class ForecastResponse {
                 forecast.getId(),
                 summary,
                 forecast.getPredictedDeliveryTime(),
+                forecast.getConfidence(),
                 forecast.getPredictedStatus(),
                 forecast.getCreatedAt()
         );
@@ -55,6 +61,10 @@ public class ForecastResponse {
 
     public LocalDateTime getPredictedDeliveryTime() {
         return predictedDeliveryTime;
+    }
+
+    public Double getConfidence() {
+        return confidence;
     }
 
     public ShipmentStatus getPredictedStatus() {

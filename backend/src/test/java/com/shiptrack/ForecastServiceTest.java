@@ -47,7 +47,7 @@ class ForecastServiceTest {
     void doesNotCreateForecastWhenRouteDurationIsUnavailable() {
         Shipment shipment = shipment(10L, ShipmentStatus.IN_TRANSIT);
         when(shipmentRepository.findById(10L)).thenReturn(Optional.of(shipment));
-        when(routeRepository.findByShipmentId(10L)).thenReturn(Optional.empty());
+        when(routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(10L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> forecastService.generateForecast(10L))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -63,7 +63,7 @@ class ForecastServiceTest {
         route.setEstimatedDurationMinutes(0);
 
         when(shipmentRepository.findById(10L)).thenReturn(Optional.of(shipment));
-        when(routeRepository.findByShipmentId(10L)).thenReturn(Optional.of(route));
+        when(routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(10L)).thenReturn(Optional.of(route));
 
         assertThatThrownBy(() -> forecastService.generateForecast(10L))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -73,13 +73,13 @@ class ForecastServiceTest {
     }
 
     @Test
-    void createsRouteBasedForecastWithoutConfidenceScore() {
+    void createsRouteBasedForecastWithConfidenceScore() {
         Shipment shipment = shipment(10L, ShipmentStatus.IN_TRANSIT);
         Route route = new Route();
         route.setEstimatedDurationMinutes(90);
 
         when(shipmentRepository.findById(10L)).thenReturn(Optional.of(shipment));
-        when(routeRepository.findByShipmentId(10L)).thenReturn(Optional.of(route));
+        when(routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(10L)).thenReturn(Optional.of(route));
         when(forecastRepository.save(any(Forecast.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -88,7 +88,7 @@ class ForecastServiceTest {
 
         assertThat(forecast.getPredictedDeliveryTime())
                 .isBetween(startedAt.plusMinutes(89), startedAt.plusMinutes(91));
-        assertThat(forecast.getConfidence()).isNull();
+        assertThat(forecast.getConfidence()).isEqualTo(0.75);
         verify(forecastRepository).save(forecast);
     }
 

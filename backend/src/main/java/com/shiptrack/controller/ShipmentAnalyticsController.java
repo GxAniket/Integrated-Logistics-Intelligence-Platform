@@ -1,6 +1,8 @@
 package com.shiptrack.controller;
 
 import com.shiptrack.dto.ShipmentAnalyticsResponse;
+import com.shiptrack.dto.DeliveryPerformanceReportResponse;
+import com.shiptrack.service.DeliveryPerformanceReportService;
 import com.shiptrack.service.ShipmentAnalyticsService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -18,15 +20,26 @@ import java.time.LocalDate;
 public class ShipmentAnalyticsController {
 
     private final ShipmentAnalyticsService analyticsService;
+    private final DeliveryPerformanceReportService deliveryPerformanceReportService;
 
-    public ShipmentAnalyticsController(ShipmentAnalyticsService analyticsService) {
+    public ShipmentAnalyticsController(
+            ShipmentAnalyticsService analyticsService,
+            DeliveryPerformanceReportService deliveryPerformanceReportService) {
         this.analyticsService = analyticsService;
+        this.deliveryPerformanceReportService = deliveryPerformanceReportService;
     }
 
-    @GetMapping
+    @GetMapping({"", "/shipments"})
     public ResponseEntity<ShipmentAnalyticsResponse> getAnalytics(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(analyticsService.getAnalytics(from, to));
+    }
+
+    @GetMapping("/delivery-performance")
+    public ResponseEntity<DeliveryPerformanceReportResponse> getDeliveryPerformance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(deliveryPerformanceReportService.getReport(from, to));
     }
 }

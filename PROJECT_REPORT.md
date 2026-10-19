@@ -91,13 +91,15 @@ Route calculation uses the shipment's sender and receiver addresses:
 2. OSRM's driving profile calculates a road route between those coordinates.
 3. The backend saves the origin and destination addresses and coordinates, distance in kilometres, estimated duration in minutes, and returned GeoJSON route geometry. Existing route data for the shipment is updated rather than duplicated.
 
+The customer tracking page loads the saved route or calculates it when none exists, then displays the road geometry, pickup and delivery markers, distance, and estimated duration on an OpenStreetMap map. Geocoding normalizes compound house-number prefixes and adds India when the address does not specify a country. If the mapping service cannot resolve an address, the page reports that instead of drawing an inaccurate route.
+
 Relevant APIs:
 
 - `POST /api/routes/shipment/{shipmentId}/calculate`
 - `GET /api/routes/shipment/{shipmentId}`
 - `GET /api/routes/{id}`
 
-Route calculation is available to business clients for their own shipments, administrators, and operators for shipments assigned to them that are actively being tracked. It depends on the external geocoding/routing services being reachable.
+Route calculation is available to business clients for their own shipments, customers assigned to the shipment, administrators, support agents, and operators for shipments assigned to them that are actively being tracked. It depends on the external geocoding/routing services being reachable.
 
 ## 7. How the ETA is calculated
 
@@ -186,7 +188,7 @@ The persistence model includes users, shipments, status history, shipment locati
 The project README contains the launch commands and environment settings. In summary:
 
 1. Configure a local PostgreSQL database; the default database is `shiptrack_db`.
-2. In `backend`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`, then run `.\mvnw.cmd clean spring-boot:run`. The backend listens on port `8080`.
+2. In `backend`, set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`, then run `.\mvnw.cmd clean spring-boot:run`. The backend listens on port `8081`.
 3. In `Frontend`, run `npm install` and `npm run dev`. Vite listens on port `5173`.
 4. Configure the `MAIL_*` settings to enable password-reset email delivery. `VITE_API_BASE_URL` can override the frontend's default backend URL.
 
@@ -200,6 +202,7 @@ Backend tests use an isolated in-memory H2 database; the application itself is c
 - Location tracking: [LiveTrackingServiceImpl.java](./backend/src/main/java/com/shiptrack/service/LiveTrackingServiceImpl.java)
 - Forecast heuristic: [ForecastService.java](./backend/src/main/java/com/shiptrack/service/ForecastService.java)
 - Proof of delivery: [ProofOfDeliveryServiceImpl.java](./backend/src/main/java/com/shiptrack/service/ProofOfDeliveryServiceImpl.java)
+- Customer tracking map: [Tracking.jsx](./Frontend/src/pages/Tracking.jsx)
 - Frontend route map: [App.jsx](./Frontend/src/App.jsx)
 - Business tracking UI: [BusinessTracking.jsx](./Frontend/src/pages/BusinessTracking.jsx)
 - Operator ETA/delay UI: [OperatorETADelays.jsx](./Frontend/src/pages/OperatorETADelays.jsx)

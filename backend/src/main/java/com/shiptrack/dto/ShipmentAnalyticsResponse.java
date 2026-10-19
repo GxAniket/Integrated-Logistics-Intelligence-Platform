@@ -1,6 +1,8 @@
 package com.shiptrack.dto;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ShipmentAnalyticsResponse {
 
@@ -35,4 +37,17 @@ public class ShipmentAnalyticsResponse {
     public void setOutForDeliveryShipments(long outForDeliveryShipments) { this.outForDeliveryShipments = outForDeliveryShipments; }
     public long getCancelledShipments() { return cancelledShipments; }
     public void setCancelledShipments(long cancelledShipments) { this.cancelledShipments = cancelledShipments; }
+
+    public Map<String, Long> getStatusBreakdown() {
+        Map<String, Long> statusBreakdown = new LinkedHashMap<>();
+        statusBreakdown.put("CREATED", createdShipments);
+        statusBreakdown.put("PICKED_UP", pickedUpShipments);
+        statusBreakdown.put("IN_TRANSIT", Math.max(
+                0, inTransitShipments - pickedUpShipments - outForDeliveryShipments));
+        statusBreakdown.put("OUT_FOR_DELIVERY", outForDeliveryShipments);
+        statusBreakdown.put("DELIVERED", deliveredShipments);
+        statusBreakdown.put("FAILED_DELIVERY", delayedShipments);
+        statusBreakdown.put("CANCELLED", cancelledShipments);
+        return statusBreakdown;
+    }
 }

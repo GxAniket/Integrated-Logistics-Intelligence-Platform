@@ -63,7 +63,7 @@ public class DeliveryEtaService {
                                 "Shipment not found with ID: " + shipmentId));
 
         Route route = routeRepository
-                .findByShipmentId(shipmentId)
+                .findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(shipmentId)
                 .orElse(null);
 
         GeoPoint destination = request.getDestination();

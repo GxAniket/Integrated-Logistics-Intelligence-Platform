@@ -597,6 +597,26 @@
   color: white;
 }
 
+.auth-role-note {
+  margin: 8px 0 0;
+  color: #a8afbf;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.auth-role-note a,
+.auth-admin-switch a {
+  color: #ff9a3d;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-role-note a:hover,
+.auth-admin-switch a:hover {
+  color: #ffbd7a;
+  text-decoration: underline;
+}
+
 
 /* =====================================================
    PASSWORD TOGGLE
@@ -910,6 +930,10 @@
 
 .auth-switch a:hover {
   color: #ff3d83;
+}
+
+.auth-admin-switch {
+  margin-top: 10px;
 }
 
 

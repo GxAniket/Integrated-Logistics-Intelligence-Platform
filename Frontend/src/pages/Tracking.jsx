@@ -1,7 +1,99 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import {
+  CircleMarker,
+  MapContainer,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import "./Tracking.css";
 import { apiRequest } from "../api";
+
+function hasCoordinates(latitude, longitude) {
+  if (
+    latitude === null ||
+    latitude === undefined ||
+    longitude === null ||
+    longitude === undefined ||
+    String(latitude).trim() === "" ||
+    String(longitude).trim() === ""
+  ) {
+    return false;
+  }
+
+  const numericLatitude = Number(latitude);
+  const numericLongitude = Number(longitude);
+
+  return (
+    Number.isFinite(numericLatitude) &&
+    Number.isFinite(numericLongitude) &&
+    Math.abs(numericLatitude) <= 90 &&
+    Math.abs(numericLongitude) <= 180 &&
+    !(numericLatitude === 0 && numericLongitude === 0)
+  );
+}
+
+function getRouteCoordinates(route) {
+  if (!route?.geometry) {
+    return [];
+  }
+
+  try {
+    const geometry =
+      typeof route.geometry === "string"
+        ? JSON.parse(route.geometry)
+        : route.geometry;
+    const lineString =
+      geometry?.type === "Feature" ? geometry.geometry : geometry;
+
+    if (
+      lineString?.type !== "LineString" ||
+      !Array.isArray(lineString.coordinates)
+    ) {
+      return [];
+    }
+
+    return lineString.coordinates
+      .filter(
+        (coordinate) =>
+          Array.isArray(coordinate) &&
+          coordinate.length >= 2 &&
+          hasCoordinates(coordinate[1], coordinate[0])
+      )
+      .map(([longitude, latitude]) => [
+        Number(latitude),
+        Number(longitude),
+      ]);
+  } catch (err) {
+    console.error("Failed to parse shipment route geometry:", err);
+    return [];
+  }
+}
+
+function RouteMapViewport({ points }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length === 0) {
+      return;
+    }
+
+    if (points.length === 1) {
+      map.setView(points[0], 13);
+      return;
+    }
+
+    map.fitBounds(points, {
+      padding: [32, 32],
+      maxZoom: 12,
+    });
+  }, [map, points]);
+
+  return null;
+}
 
 /* =========================
    USER HELPERS
@@ -279,6 +371,7 @@ function Tracking() {
   const [shipment, setShipment] = useState(null);
 
   const [location, setLocation] = useState(null);
+  const [route, setRoute] = useState(null);
   const [shipmentHistory, setShipmentHistory] = useState([]);
   const [eta, setEta] = useState(null);
   const [forecasts, setForecasts] = useState([]);
@@ -287,12 +380,20 @@ function Tracking() {
   const [loadingUser, setLoadingUser] =
     useState(true);
 
+  const routeCalculationPromises = useRef(new Map());
+
   const [loadingShipment, setLoadingShipment] =
+    useState(false);
+
+  const [loadingRoute, setLoadingRoute] =
     useState(false);
 
   const [error, setError] = useState("");
 
   const [locationError, setLocationError] =
+    useState("");
+
+  const [routeError, setRouteError] =
     useState("");
 
   const [detailsWarning, setDetailsWarning] =
@@ -345,10 +446,12 @@ function Tracking() {
     if (!cleanNumber) {
       setShipment(null);
       setLocation(null);
+      setRoute(null);
       setShipmentHistory([]);
       setEta(null);
       setForecasts([]);
       setProofOfDelivery(null);
+      setRouteError("");
       setDetailsWarning("");
       setError(
         "Please enter a tracking number."
@@ -360,9 +463,11 @@ function Tracking() {
       setLoadingShipment(true);
       setError("");
       setLocationError("");
+      setRouteError("");
       setDetailsWarning("");
       setShipment(null);
       setLocation(null);
+      setRoute(null);
       setShipmentHistory([]);
       setEta(null);
       setForecasts([]);
@@ -389,6 +494,7 @@ function Tracking() {
 
       if (shipmentData?.id) {
         const shipmentId = shipmentData.id;
+        setLoadingRoute(true);
         const terminalStatus = [
           "DELIVERED",
           "CANCELLED",
@@ -399,20 +505,23 @@ function Tracking() {
         const optionalResults = await Promise.allSettled([
           apiRequest(`/api/shipments/${shipmentId}/location`),
           apiRequest(`/api/shipments/${shipmentId}/history`),
-          terminalStatus
-            ? Promise.resolve(null)
-            : apiRequest(`/api/routes/shipment/${shipmentId}`),
           apiRequest(`/api/forecasts/shipment/${shipmentId}`),
           apiRequest(`/api/shipments/${shipmentId}/pod`),
+          apiRequest(`/api/routes/shipment/${shipmentId}`),
         ]);
         const [
           locationResult,
           historyResult,
-          routeResult,
           forecastResult,
           podResult,
+          routeResult,
         ] = optionalResults;
-        const failedRequests = optionalResults.filter(
+        const failedRequests = [
+          locationResult,
+          historyResult,
+          forecastResult,
+          podResult,
+        ].filter(
           (result) =>
             result.status === "rejected" &&
             result.reason?.status !== 404
@@ -456,14 +565,67 @@ function Tracking() {
           setProofOfDelivery(podResult.value);
         }
 
-        const route =
+        let shipmentRoute =
           routeResult.status === "fulfilled"
             ? routeResult.value
             : null;
 
         if (
-          route?.destinationLatitude != null &&
-          route?.destinationLongitude != null &&
+          !shipmentRoute &&
+          routeResult.status === "rejected" &&
+          routeResult.reason?.status === 404
+        ) {
+          const routeKey = String(shipmentId);
+          let routeCalculation =
+            routeCalculationPromises.current.get(routeKey);
+          if (!routeCalculation) {
+            routeCalculation = apiRequest(
+              `/api/routes/shipment/${shipmentId}/calculate`,
+              { method: "POST" }
+            );
+            routeCalculationPromises.current.set(
+              routeKey,
+              routeCalculation
+            );
+          }
+
+          try {
+            shipmentRoute = await routeCalculation;
+          } catch (routeErr) {
+            console.error(
+              "Failed to calculate shipment route:",
+              routeErr
+            );
+            setRouteError(
+              routeErr?.message ||
+                "The road route could not be calculated for these addresses."
+            );
+          } finally {
+            if (
+              routeCalculationPromises.current.get(routeKey) ===
+              routeCalculation
+            ) {
+              routeCalculationPromises.current.delete(routeKey);
+            }
+          }
+        } else if (routeResult.status === "rejected") {
+          console.error(
+            "Failed to load saved shipment route:",
+            routeResult.reason
+          );
+          setRouteError(
+            routeResult.reason?.message ||
+              "The saved shipment route could not be loaded."
+          );
+        }
+
+        if (shipmentRoute) {
+          setRoute(shipmentRoute);
+        }
+
+        if (
+          shipmentRoute?.destinationLatitude != null &&
+          shipmentRoute?.destinationLongitude != null &&
           !terminalStatus
         ) {
           try {
@@ -474,10 +636,10 @@ function Tracking() {
                 body: JSON.stringify({
                   destination: {
                     latitude: Number(
-                      route.destinationLatitude
+                      shipmentRoute.destinationLatitude
                     ),
                     longitude: Number(
-                      route.destinationLongitude
+                      shipmentRoute.destinationLongitude
                     ),
                   },
                   trafficCondition: "MODERATE",
@@ -507,6 +669,7 @@ function Tracking() {
 
       setShipment(null);
       setLocation(null);
+      setRoute(null);
       setShipmentHistory([]);
       setEta(null);
       setForecasts([]);
@@ -518,6 +681,7 @@ function Tracking() {
       );
     } finally {
       setLoadingShipment(false);
+      setLoadingRoute(false);
     }
   }
 
@@ -565,9 +729,67 @@ function Tracking() {
   const longitude =
     getLongitude(location);
 
-  const hasCoordinates =
-    latitude !== null &&
-    longitude !== null;
+  const hasCurrentCoordinates =
+    hasCoordinates(latitude, longitude);
+
+  const routeCoordinates = useMemo(
+    () => getRouteCoordinates(route),
+    [route]
+  );
+  const originPoint = useMemo(() => {
+    if (
+      hasCoordinates(
+        route?.originLatitude,
+        route?.originLongitude
+      )
+    ) {
+      return [
+        Number(route.originLatitude),
+        Number(route.originLongitude),
+      ];
+    }
+
+    return routeCoordinates[0] || null;
+  }, [route, routeCoordinates]);
+  const destinationPoint = useMemo(() => {
+    if (
+      hasCoordinates(
+        route?.destinationLatitude,
+        route?.destinationLongitude
+      )
+    ) {
+      return [
+        Number(route.destinationLatitude),
+        Number(route.destinationLongitude),
+      ];
+    }
+
+    return routeCoordinates[routeCoordinates.length - 1] || null;
+  }, [route, routeCoordinates]);
+  const currentPoint = useMemo(
+    () =>
+      hasCurrentCoordinates
+        ? [Number(latitude), Number(longitude)]
+        : null,
+    [hasCurrentCoordinates, latitude, longitude]
+  );
+  const routeLine = useMemo(() => {
+    if (routeCoordinates.length > 1) {
+      return routeCoordinates;
+    }
+
+    return originPoint && destinationPoint
+      ? [originPoint, destinationPoint]
+      : [];
+  }, [destinationPoint, originPoint, routeCoordinates]);
+  const mapPoints = useMemo(
+    () =>
+      [
+        ...routeLine,
+        ...(currentPoint ? [currentPoint] : []),
+      ],
+    [currentPoint, routeLine]
+  );
 
   const timeline =
     shipment
@@ -846,7 +1068,7 @@ function Tracking() {
                   </strong>
 
                   <small>
-                    {hasCoordinates
+                    {hasCurrentCoordinates
                       ? `${latitude}, ${longitude}`
                       : "Location coordinates unavailable"}
                   </small>
@@ -881,6 +1103,150 @@ function Tracking() {
                   {detailsWarning}
                 </div>
               )}
+
+              <section className="tracking-route-section">
+                <div className="tracking-route-heading">
+                  <div>
+                    <span>SHIPMENT ROUTE</span>
+                    <h3>
+                      {route
+                        ? "Planned road route"
+                        : loadingRoute
+                        ? "Calculating route..."
+                        : "Route map"}
+                    </h3>
+                  </div>
+                  {route && (
+                    <div className="tracking-route-summary">
+                      {route.distanceKm != null && (
+                        <strong>
+                          {Number(route.distanceKm).toFixed(1)} km
+                        </strong>
+                      )}
+                      {route.estimatedDurationMinutes != null && (
+                        <small>
+                          {route.estimatedDurationMinutes} min estimated
+                        </small>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="tracking-route-addresses">
+                  <div>
+                    <span>FROM</span>
+                    <strong>{getOrigin(shipment)}</strong>
+                  </div>
+                  <div>
+                    <span>TO</span>
+                    <strong>{getDestination(shipment)}</strong>
+                  </div>
+                </div>
+
+                {routeError && (
+                  <p className="tracking-route-message" role="status">
+                    {routeError}
+                  </p>
+                )}
+
+                {mapPoints.length > 0 ? (
+                  <>
+                    <div className="tracking-map">
+                      <MapContainer
+                        center={mapPoints[0]}
+                        zoom={12}
+                        scrollWheelZoom={false}
+                        aria-label="Shipment route map"
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {routeLine.length > 1 && (
+                          <Polyline
+                            positions={routeLine}
+                            pathOptions={{
+                              color: "#ff7954",
+                              weight: 5,
+                              opacity: 0.9,
+                              dashArray:
+                                routeCoordinates.length > 1
+                                  ? undefined
+                                  : "8 10",
+                            }}
+                          />
+                        )}
+                        {originPoint && (
+                          <CircleMarker
+                            center={originPoint}
+                            radius={8}
+                            pathOptions={{
+                              color: "#ffffff",
+                              weight: 2,
+                              fillColor: "#42d8a1",
+                              fillOpacity: 1,
+                            }}
+                          >
+                            <Popup>Pickup: {getOrigin(shipment)}</Popup>
+                          </CircleMarker>
+                        )}
+                        {destinationPoint && (
+                          <CircleMarker
+                            center={destinationPoint}
+                            radius={8}
+                            pathOptions={{
+                              color: "#ffffff",
+                              weight: 2,
+                              fillColor: "#ff7954",
+                              fillOpacity: 1,
+                            }}
+                          >
+                            <Popup>
+                              Delivery: {getDestination(shipment)}
+                            </Popup>
+                          </CircleMarker>
+                        )}
+                        {currentPoint && (
+                          <CircleMarker
+                            center={currentPoint}
+                            radius={7}
+                            pathOptions={{
+                              color: "#ffffff",
+                              weight: 2,
+                              fillColor: "#579cff",
+                              fillOpacity: 1,
+                            }}
+                          >
+                            <Popup>
+                              Current location: {locationName}
+                            </Popup>
+                          </CircleMarker>
+                        )}
+                        <RouteMapViewport points={mapPoints} />
+                      </MapContainer>
+                    </div>
+                    <div className="tracking-map-legend">
+                      <span><i className="route-origin-dot" /> Pickup</span>
+                      <span><i className="route-destination-dot" /> Delivery</span>
+                      {currentPoint && (
+                        <span><i className="route-current-dot" /> Current location</span>
+                      )}
+                      {routeCoordinates.length < 2 && (
+                        <small>
+                          Showing a direct line; road directions are unavailable.
+                        </small>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="tracking-map-empty">
+                    {loadingRoute
+                      ? "Finding the pickup and delivery locations..."
+                      : routeError ||
+                        "The route cannot be shown until these addresses can be located."}
+                  </div>
+                )}
+              </section>
 
               {/* TIMELINE */}
 

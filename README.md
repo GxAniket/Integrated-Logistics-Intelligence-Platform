@@ -22,14 +22,30 @@ $env:DB_PASSWORD = Read-Host "gifty"
 
 ```
 
-Backend runs on `http://localhost:8080`.
+Backend runs on `http://localhost:8081`.
 
 The database URL, username, and password can be supplied through `DB_URL`,
 `DB_USERNAME`, and `DB_PASSWORD`; the defaults target the local `shiptrack_db`
 database and the `postgres` user. Set `DB_PASSWORD` in your environment before
 running the backend or its database-backed tests.
 Backend tests use an isolated in-memory H2 database; running the application still requires PostgreSQL.
-Public registration supports customers, business clients, and logistics operators; administrator and support accounts are provisioned from the administrator dashboard.
+Public registration supports customers, business clients, and logistics operators. Administrator and support accounts can be provisioned from the administrator dashboard once an administrator exists.
+
+#### First administrator account
+
+Administrator login uses the existing `/api/auth/login` endpoint and the `ADMINISTRATOR` role. On a fresh database, enable the one-time bootstrap for the first backend startup. In the backend PowerShell terminal, set the administrator details before running `.\mvnw.cmd spring-boot:run`:
+
+```powershell
+$env:SHIPTRACK_BOOTSTRAP_ADMIN_ENABLED = "true"
+$env:SHIPTRACK_BOOTSTRAP_ADMIN_EMAIL = "admin@example.com"
+$env:SHIPTRACK_BOOTSTRAP_ADMIN_FULL_NAME = "ShipTrack Administrator"
+$securePassword = Read-Host "Choose an administrator password (12+ characters)" -AsSecureString
+$env:SHIPTRACK_BOOTSTRAP_ADMIN_PASSWORD = [System.Net.NetworkCredential]::new("", $securePassword).Password
+.\mvnw.cmd spring-boot:run
+```
+
+The bootstrap creates the account only if no administrator exists, and requires a password of at least 12 characters. It refuses to promote an existing non-administrator account with the configured email. After the initial account is created, stop the backend, remove the four `SHIPTRACK_BOOTSTRAP_ADMIN_*` environment variables from that terminal, and restart normally. Bootstrap is disabled by default; it does not add a public administrator-registration endpoint. Then sign in through the frontend using the Administrator role.
+
 Password reset sends a 6-digit email code that expires after 10 minutes. Configure
 `MAIL_HOST` and `MAIL_PORT`; when required by your provider, also set
 `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, and
@@ -46,7 +62,7 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173`.
-Set `VITE_API_BASE_URL` before starting Vite to use a different backend URL; the default is `http://localhost:8080`.
+Set `VITE_API_BASE_URL` before starting Vite to use a different backend URL; the default is `http://localhost:8081`.
 
 ## Main API endpoints
 

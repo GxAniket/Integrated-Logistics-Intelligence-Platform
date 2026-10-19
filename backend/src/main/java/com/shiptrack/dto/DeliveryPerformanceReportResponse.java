@@ -27,4 +27,6 @@ public class DeliveryPerformanceReportResponse {
     public void setOnTimeDefinition(String onTimeDefinition) { this.onTimeDefinition = onTimeDefinition; }
     public List<DeliveryPerformanceRecord> getRecords() { return records; }
     public void setRecords(List<DeliveryPerformanceRecord> records) { this.records = records; }
+    public List<DeliveryPerformanceRecord> getDeliveries() { return records; }
+    public long getTotalShipments() { return records == null ? 0 : records.size(); }
 }

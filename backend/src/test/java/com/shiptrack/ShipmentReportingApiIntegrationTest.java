@@ -2,6 +2,7 @@ package com.shiptrack;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shiptrack.dto.RegisterRequest;
 import com.shiptrack.entity.Route;
 import com.shiptrack.entity.Shipment;
 import com.shiptrack.entity.ShipmentStatusHistory;
@@ -15,6 +16,7 @@ import com.shiptrack.repository.ShipmentStatusHistoryRepository;
 import com.shiptrack.repository.UserRepository;
 import com.shiptrack.security.JwtUtils;
 import com.shiptrack.service.MapsService;
+import com.shiptrack.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -72,6 +74,9 @@ class ShipmentReportingApiIntegrationTest {
     @Autowired
     private JwtUtils jwtUtils;
 
+    @Autowired
+    private UserService userService;
+
     @MockitoBean
     private MapsService mapsService;
 
@@ -90,6 +95,46 @@ class ShipmentReportingApiIntegrationTest {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid email or password."));
+    }
+
+    @Test
+    void administratorCanLogInAndAccessAdminDashboardApisWhileOtherRolesCannot()
+            throws Exception {
+        String email = "bootstrapped-admin-" + UUID.randomUUID() + "@shiptrack.test";
+        String password = "secure-admin-password";
+        RegisterRequest adminRequest = new RegisterRequest();
+        adminRequest.setFullName("Bootstrapped Administrator");
+        adminRequest.setEmail(email);
+        adminRequest.setPassword(password);
+        adminRequest.setRole(Role.ADMINISTRATOR);
+        userService.createPrivilegedUser(adminRequest);
+
+        JsonNode login = objectMapper.readTree(
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(Map.of(
+                                        "email", email,
+                                        "password", password))))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.role").value(Role.ADMINISTRATOR.name()))
+                        .andReturn().getResponse().getContentAsString());
+        String administratorToken = "Bearer " + login.get("token").asText();
+
+        mockMvc.perform(get("/api/users")
+                        .header("Authorization", administratorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].role").exists());
+
+        mockMvc.perform(get("/api/analytics")
+                        .header("Authorization", administratorToken))
+                .andExpect(status().isOk());
+
+        ApiUser businessClient = registerAndLogin(
+                "admin-dashboard-access-business-client",
+                Role.BUSINESS_CLIENT);
+        mockMvc.perform(get("/api/users")
+                        .header("Authorization", businessClient.bearerToken()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -241,7 +286,7 @@ class ShipmentReportingApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.shipment.id").value(shipmentId))
                 .andExpect(jsonPath("$.predictedDeliveryTime").isNotEmpty())
-                .andExpect(jsonPath("$.confidence").doesNotExist());
+                .andExpect(jsonPath("$.confidence").value(0.75));
 
         mockMvc.perform(patch("/api/shipments/{id}/location", shipmentId)
                         .header("Authorization", operator.bearerToken())
@@ -507,7 +552,7 @@ class ShipmentReportingApiIntegrationTest {
 
         org.junit.jupiter.api.Assertions.assertEquals(
                 persistedGeometry,
-                routeRepository.findByShipmentId(activeShipment.getId())
+                routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(activeShipment.getId())
                         .orElseThrow()
                         .getGeometry());
 

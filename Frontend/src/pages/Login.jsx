@@ -9,7 +9,7 @@ import {
   Truck,
 } from "lucide-react";
 
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
 import "./Login.css";
@@ -20,6 +20,7 @@ function Login() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const [rememberEmail, setRememberEmail] = useState(() =>
     Boolean(localStorage.getItem("shiptrackRememberedEmail"))
@@ -37,7 +38,11 @@ function Login() {
   const [formData, setFormData] = useState({
     email: localStorage.getItem("shiptrackRememberedEmail") || "",
     password: "",
-    role: "",
+    role: ["admin", "administrator"].includes(
+      searchParams.get("role")?.toLowerCase() || ""
+    )
+      ? "admin"
+      : "",
   });
 
 
@@ -613,6 +618,16 @@ function Login() {
                 </select>
 
               </div>
+
+              <button
+                type="button"
+                className="administrator-sign-in"
+                onClick={() =>
+                  setFormData((previous) => ({ ...previous, role: "admin" }))
+                }
+              >
+                Sign in as an administrator
+              </button>
 
             </div>
 

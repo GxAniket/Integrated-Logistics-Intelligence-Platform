@@ -3,6 +3,7 @@ package com.shiptrack.controller;
 import com.shiptrack.dto.ShipmentRequest;
 import com.shiptrack.dto.ShipmentResponse;
 import com.shiptrack.dto.ShipmentStatusHistoryResponse;
+import com.shiptrack.dto.AssignOperatorRequest;
 import com.shiptrack.dto.StatusUpdateRequest;
 import com.shiptrack.service.ShipmentService;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +52,17 @@ public class ShipmentController {
     public ResponseEntity<ShipmentResponse> updateShipment(@PathVariable Long id, @RequestBody ShipmentRequest request) {
         ShipmentResponse response = shipmentService.updateShipment(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/assign")
+    @PreAuthorize("hasAnyRole('BUSINESS_CLIENT', 'ADMINISTRATOR')")
+    public ResponseEntity<ShipmentResponse> assignOperator(
+            @PathVariable Long id,
+            @RequestBody AssignOperatorRequest request) {
+        if (request == null || request.getOperatorId() == null) {
+            throw new IllegalArgumentException("Operator ID is required");
+        }
+        return ResponseEntity.ok(shipmentService.assignOperator(id, request.getOperatorId()));
     }
 
     @PatchMapping("/{id}/status")

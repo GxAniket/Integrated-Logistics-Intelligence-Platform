@@ -44,15 +44,16 @@ public class MapsService {
 
     public Coordinates geocode(String address) {
 
+        String searchAddress = normalizeAddress(address);
         String url = geocodingUrl
                 + "?format=jsonv2&limit=1&q="
-                + URLEncoder.encode(address, StandardCharsets.UTF_8);
+                + URLEncoder.encode(searchAddress, StandardCharsets.UTF_8);
 
         JsonNode result = getJson(url);
 
         if (!result.isArray() || result.isEmpty()) {
             throw new MapsServiceException(
-                    "Address could not be geocoded: " + address);
+                    "Address could not be geocoded: " + searchAddress);
         }
 
         JsonNode location = result.get(0);
@@ -68,6 +69,24 @@ public class MapsService {
                     exception
             );
         }
+    }
+
+    private String normalizeAddress(String address) {
+        if (address == null || address.isBlank()) {
+            throw new MapsServiceException("Address is required for geocoding");
+        }
+
+        String[] components = address.trim().replaceAll("\\s+", " ").split(",");
+        components[0] = components[0].replaceFirst(
+                "^\\s*\\d+(?:[-/]\\d+){2,}\\s+",
+                ""
+        );
+
+        String normalizedAddress = String.join(", ", components).trim();
+        if (!normalizedAddress.toLowerCase(java.util.Locale.ROOT).endsWith("india")) {
+            normalizedAddress += ", India";
+        }
+        return normalizedAddress;
     }
 
     public RouteData route(

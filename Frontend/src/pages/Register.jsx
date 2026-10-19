@@ -916,11 +916,11 @@ function Register() {
       Select your role
     </option>
 
-    {canCreatePrivilegedAccount && (
-      <option value="administrator">
-        Administrator
-      </option>
-    )}
+    <option value="administrator" disabled={!canCreatePrivilegedAccount}>
+      {canCreatePrivilegedAccount
+        ? "Administrator"
+        : "Administrator (restricted)"}
+    </option>
     {canCreatePrivilegedAccount && (
       <option value="support">
         Support Agent
@@ -944,6 +944,14 @@ function Register() {
     )}
 </select>
 </div>
+{!canCreatePrivilegedAccount && (
+  <p className="auth-role-note">
+    Administrator accounts cannot be self-registered. The first administrator
+    must be provisioned by your system operator; existing administrators can
+    create additional accounts. Already have an administrator account?{" "}
+    <Link to="/login?role=admin">sign in as an administrator</Link>.
+  </p>
+)}
 </div>
 
             {/* =================================================
@@ -1010,6 +1018,12 @@ function Register() {
               Sign in
             </Link>
           </p>
+          {!canCreatePrivilegedAccount && (
+            <p className="auth-switch auth-admin-switch">
+              Administrator?
+              <Link to="/login?role=admin">Sign in here</Link>
+            </p>
+          )}
         </section>
       </main>
     </div>

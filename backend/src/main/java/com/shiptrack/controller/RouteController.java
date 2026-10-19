@@ -45,7 +45,7 @@ public class RouteController {
     }
 
     @PostMapping("/shipment/{shipmentId}/calculate")
-    @PreAuthorize("hasAnyRole('BUSINESS_CLIENT', 'LOGISTICS_OPERATOR', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('BUSINESS_CLIENT', 'LOGISTICS_OPERATOR', 'ADMINISTRATOR', 'CUSTOMER', 'SUPPORT_AGENT')")
     public ResponseEntity<RouteResponse> calculateRoute(
             @PathVariable Long shipmentId) {
 
@@ -78,6 +78,18 @@ public class RouteController {
                 throw new org.springframework.security.access.AccessDeniedException(
                         "You can only calculate routes for your assigned active shipments.");
             }
+        } else if (currentUser.getRole() == Role.CUSTOMER) {
+            boolean assignedToCurrentCustomer =
+                    shipment.getCustomer() != null
+                            && shipment.getCustomer().getId().equals(currentUser.getId());
+            if (!assignedToCurrentCustomer) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "You can only calculate routes for your own shipments.");
+            }
+        } else if (currentUser.getRole() != Role.ADMINISTRATOR
+                && currentUser.getRole() != Role.SUPPORT_AGENT) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You do not have permission to calculate routes for this shipment.");
         }
 
         // Geocode sender and receiver addresses using Nominatim.
@@ -92,7 +104,7 @@ public class RouteController {
                 mapsService.route(origin, destination);
 
         // Reuse existing Route if one already exists.
-        Route route = routeRepository.findByShipmentId(shipmentId)
+        Route route = routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(shipmentId)
                 .orElseGet(Route::new);
 
         route.setShipment(shipment);
@@ -147,7 +159,7 @@ return ResponseEntity.ok(
         @PathVariable Long shipmentId) {
 
         shipmentService.getShipmentById(shipmentId);
-        Route route = routeRepository.findByShipmentId(shipmentId)
+        Route route = routeRepository.findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(shipmentId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Route not found for shipment ID: " + shipmentId));

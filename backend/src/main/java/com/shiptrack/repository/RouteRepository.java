@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface RouteRepository extends JpaRepository<Route, Long> {
 
-    Optional<Route> findByShipmentId(Long shipmentId);
+    Optional<Route> findFirstByShipmentIdOrderByUpdatedAtDescIdDesc(Long shipmentId);
 
     List<Route> findByAssignedOperatorId(Long assignedOperatorId);
 }

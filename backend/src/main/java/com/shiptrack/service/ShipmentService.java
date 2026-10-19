@@ -13,6 +13,7 @@ public interface ShipmentService {
     ShipmentResponse getShipmentByTrackingNumber(String trackingNumber);
     List<ShipmentResponse> getAllShipments();
     ShipmentResponse updateShipment(Long id, ShipmentRequest request);
+    ShipmentResponse assignOperator(Long id, Long operatorId);
     ShipmentResponse updateShipmentStatus(Long id, StatusUpdateRequest request);
     ShipmentResponse cancelShipment(Long id);
     List<ShipmentStatusHistoryResponse> getShipmentHistory(Long id);

@@ -562,6 +562,24 @@
   color: white;
 }
 
+.administrator-sign-in {
+  display: block;
+  margin: 8px 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #ff9a3d;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.administrator-sign-in:hover {
+  color: #ffbd7a;
+  text-decoration: underline;
+}
+
 
 .password-toggle {
   position: absolute;

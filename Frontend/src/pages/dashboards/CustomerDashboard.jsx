@@ -49,8 +49,8 @@ function getShipments(response) {
 function getStatus(shipment) {
   return String(
     shipment?.status ??
-      shipment?.shipmentStatus ??
-      ""
+    shipment?.shipmentStatus ??
+    ""
   ).toUpperCase();
 }
 
@@ -272,8 +272,8 @@ function CustomerDashboard() {
 
       setSelectedShipment(
         activeShipment ??
-          latestShipment ??
-          null
+        latestShipment ??
+        null
       );
     } catch (err) {
       console.error(
@@ -283,7 +283,7 @@ function CustomerDashboard() {
 
       setError(
         err?.message ||
-          "Unable to load dashboard data."
+        "Unable to load dashboard data."
       );
 
       setUser(null);
@@ -903,7 +903,7 @@ function CustomerDashboard() {
                         <strong>
                           {formatDate(
                             shipment.createdAt ??
-                              shipment.createdDate
+                            shipment.createdDate
                           )}
                         </strong>
 
@@ -1096,7 +1096,7 @@ function CustomerDashboard() {
                       {locationLoading
                         ? "Loading..."
                         : currentLocation ||
-                          "Data unavailable"}
+                        "Data unavailable"}
                     </strong>
 
                   </div>
