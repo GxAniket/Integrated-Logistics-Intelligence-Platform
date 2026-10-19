@@ -46,26 +46,27 @@ class ShipmentTrackingSecurityTest {
 
     @BeforeEach
     void setUp() {
-        shipmentRepository.deleteAll();
-        userRepository.deleteAll();
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+        String ownerEmail = "owner-" + uid + "@shiptrack.com";
+        String otherEmail = "other-" + uid + "@shiptrack.com";
 
         RegisterRequest ownerReq = new RegisterRequest();
         ownerReq.setFullName("Owner Business");
-        ownerReq.setEmail("owner-business@shiptrack.com");
+        ownerReq.setEmail(ownerEmail);
         ownerReq.setPassword("password123");
         ownerReq.setRole(Role.BUSINESS_CLIENT);
         ownerReq.setPhoneNumber("1111111111");
         userService.registerUser(ownerReq);
-        ownerClient = userRepository.findByEmail("owner-business@shiptrack.com").orElseThrow();
+        ownerClient = userRepository.findByEmail(ownerEmail).orElseThrow();
 
         RegisterRequest otherReq = new RegisterRequest();
         otherReq.setFullName("Other Business");
-        otherReq.setEmail("other-business@shiptrack.com");
+        otherReq.setEmail(otherEmail);
         otherReq.setPassword("password123");
         otherReq.setRole(Role.BUSINESS_CLIENT);
         otherReq.setPhoneNumber("2222222222");
         userService.registerUser(otherReq);
-        otherClient = userRepository.findByEmail("other-business@shiptrack.com").orElseThrow();
+        otherClient = userRepository.findByEmail(otherEmail).orElseThrow();
     }
 
     private void authenticateAs(String email) {
@@ -77,7 +78,7 @@ class ShipmentTrackingSecurityTest {
     }
 
     private ShipmentResponse createShipmentAsOwner() {
-        authenticateAs("owner-business@shiptrack.com");
+        authenticateAs(ownerClient.getEmail());
 
         ShipmentRequest request = new ShipmentRequest();
         request.setSenderName("Sender Co");
@@ -94,7 +95,7 @@ class ShipmentTrackingSecurityTest {
     void ownerCanTrackTheirOwnShipmentByTrackingNumber() {
         ShipmentResponse created = createShipmentAsOwner();
 
-        authenticateAs("owner-business@shiptrack.com");
+        authenticateAs(ownerClient.getEmail());
         ShipmentResponse tracked = shipmentService.getShipmentByTrackingNumber(created.getTrackingNumber());
 
         assertEquals(created.getId(), tracked.getId());
@@ -105,7 +106,7 @@ class ShipmentTrackingSecurityTest {
     void otherBusinessClientCannotTrackSomeoneElsesShipment() {
         ShipmentResponse created = createShipmentAsOwner();
 
-        authenticateAs("other-business@shiptrack.com");
+        authenticateAs(otherClient.getEmail());
 
         assertThrows(AccessDeniedException.class,
                 () -> shipmentService.getShipmentByTrackingNumber(created.getTrackingNumber()));

@@ -5,11 +5,13 @@ import com.shiptrack.dto.ProofOfDeliveryResponse;
 import com.shiptrack.entity.ProofOfDelivery;
 import com.shiptrack.entity.Shipment;
 import com.shiptrack.entity.User;
+import com.shiptrack.entity.ShipmentStatusHistory;
 import com.shiptrack.enums.Role;
 import com.shiptrack.enums.ShipmentStatus;
 import com.shiptrack.exception.ResourceNotFoundException;
 import com.shiptrack.repository.ProofOfDeliveryRepository;
 import com.shiptrack.repository.ShipmentRepository;
+import com.shiptrack.repository.ShipmentStatusHistoryRepository;
 import com.shiptrack.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,13 +26,16 @@ public class ProofOfDeliveryServiceImpl implements ProofOfDeliveryService {
     private final ProofOfDeliveryRepository podRepository;
     private final ShipmentRepository shipmentRepository;
     private final UserRepository userRepository;
+    private final ShipmentStatusHistoryRepository historyRepository;
 
     public ProofOfDeliveryServiceImpl(ProofOfDeliveryRepository podRepository,
                                       ShipmentRepository shipmentRepository,
-                                      UserRepository userRepository) {
+                                      UserRepository userRepository,
+                                      ShipmentStatusHistoryRepository historyRepository) {
         this.podRepository = podRepository;
         this.shipmentRepository = shipmentRepository;
         this.userRepository = userRepository;
+        this.historyRepository = historyRepository;
     }
 
     private User getCurrentUser() {
@@ -83,8 +88,12 @@ public class ProofOfDeliveryServiceImpl implements ProofOfDeliveryService {
         Shipment shipment = getShipment(shipmentId);
         checkCreatePermission(shipment, currentUser);
 
-        if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
-            throw new IllegalArgumentException("Proof of delivery can only be created for a delivered shipment.");
+        if (shipment.getStatus() == ShipmentStatus.CANCELLED) {
+            throw new IllegalArgumentException("Cannot create proof of delivery for a cancelled shipment.");
+        }
+
+        if (shipment.getStatus() == ShipmentStatus.CREATED) {
+            throw new IllegalArgumentException("Shipment must be in transit or out for delivery before proof of delivery can be created.");
         }
 
         if (podRepository.existsByShipmentId(shipmentId)) {
@@ -93,6 +102,19 @@ public class ProofOfDeliveryServiceImpl implements ProofOfDeliveryService {
 
         if (request.getSignature() == null || request.getSignature().trim().isEmpty()) {
             throw new IllegalArgumentException("Signature is required to create proof of delivery.");
+        }
+
+        // Synchronize shipment status to DELIVERED and record history entry if not already marked DELIVERED
+        if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
+            shipment.setStatus(ShipmentStatus.DELIVERED);
+            shipmentRepository.save(shipment);
+
+            ShipmentStatusHistory history = new ShipmentStatusHistory();
+            history.setShipment(shipment);
+            history.setStatus(ShipmentStatus.DELIVERED);
+            history.setRemarks("Delivered. Proof of delivery confirmed.");
+            history.setUpdatedBy(currentUser);
+            historyRepository.save(history);
         }
 
         if (request.getDeliveryStatus() != null && request.getDeliveryStatus() != ShipmentStatus.DELIVERED) {

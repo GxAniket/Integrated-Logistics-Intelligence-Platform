@@ -49,45 +49,48 @@ class ShipmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        shipmentRepository.deleteAll();
-        userRepository.deleteAll();
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+        String clientEmail = "client-" + uid + "@shiptrack.com";
+        String customerEmail = "customer-" + uid + "@shiptrack.com";
+        String operatorEmail = "operator-" + uid + "@shiptrack.com";
+        String adminEmail = "admin-" + uid + "@shiptrack.com";
 
         // Create Users
         RegisterRequest clientReq = new RegisterRequest();
         clientReq.setFullName("Client User");
-        clientReq.setEmail("client@shiptrack.com");
+        clientReq.setEmail(clientEmail);
         clientReq.setPassword("password123");
         clientReq.setRole(Role.BUSINESS_CLIENT);
         clientReq.setPhoneNumber("1234567890");
         userService.registerUser(clientReq);
-        clientUser = userRepository.findByEmail("client@shiptrack.com").orElseThrow();
+        clientUser = userRepository.findByEmail(clientEmail).orElseThrow();
 
         RegisterRequest customerReq = new RegisterRequest();
         customerReq.setFullName("Customer User");
-        customerReq.setEmail("customer@shiptrack.com");
+        customerReq.setEmail(customerEmail);
         customerReq.setPassword("password123");
         customerReq.setRole(Role.CUSTOMER);
         customerReq.setPhoneNumber("0987654321");
         userService.registerUser(customerReq);
-        customerUser = userRepository.findByEmail("customer@shiptrack.com").orElseThrow();
+        customerUser = userRepository.findByEmail(customerEmail).orElseThrow();
 
         RegisterRequest operatorReq = new RegisterRequest();
         operatorReq.setFullName("Operator User");
-        operatorReq.setEmail("operator@shiptrack.com");
+        operatorReq.setEmail(operatorEmail);
         operatorReq.setPassword("password123");
         operatorReq.setRole(Role.LOGISTICS_OPERATOR);
         operatorReq.setPhoneNumber("1122334455");
         userService.registerUser(operatorReq);
-        operatorUser = userRepository.findByEmail("operator@shiptrack.com").orElseThrow();
+        operatorUser = userRepository.findByEmail(operatorEmail).orElseThrow();
 
         RegisterRequest adminReq = new RegisterRequest();
         adminReq.setFullName("Admin User");
-        adminReq.setEmail("admin@shiptrack.com");
+        adminReq.setEmail(adminEmail);
         adminReq.setPassword("password123");
         adminReq.setRole(Role.ADMINISTRATOR);
         adminReq.setPhoneNumber("5544332211");
         userService.registerUser(adminReq);
-        adminUser = userRepository.findByEmail("admin@shiptrack.com").orElseThrow();
+        adminUser = userRepository.findByEmail(adminEmail).orElseThrow();
     }
 
     private void authenticateAs(String email) {
@@ -100,7 +103,7 @@ class ShipmentServiceTest {
 
     @Test
     void testCreateShipment() {
-        authenticateAs("client@shiptrack.com");
+        authenticateAs(clientUser.getEmail());
 
         ShipmentRequest request = new ShipmentRequest();
         request.setCustomerId(customerUser.getId());
@@ -132,7 +135,7 @@ class ShipmentServiceTest {
 
     @Test
     void testCancelShipment() {
-        authenticateAs("client@shiptrack.com");
+        authenticateAs(clientUser.getEmail());
 
         ShipmentRequest request = new ShipmentRequest();
         request.setSenderName("Sender Co");

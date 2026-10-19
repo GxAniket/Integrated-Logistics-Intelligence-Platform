@@ -16,5 +16,5 @@ public record ShipmentAnalyticsResponse(
         long delayedShipments,
         long failedDeliveries,
         long cancelledShipments,
-        Map<ShipmentStatus, Long> statusCounts) {
+        Map<ShipmentStatus, Long> statusBreakdown) {
 }

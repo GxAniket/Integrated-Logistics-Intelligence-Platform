@@ -1,5 +1,6 @@
 package com.shiptrack.controller;
 
+import com.shiptrack.dto.AssignOperatorRequest;
 import com.shiptrack.dto.ShipmentRequest;
 import com.shiptrack.dto.ShipmentResponse;
 import com.shiptrack.dto.ShipmentStatusHistoryResponse;
@@ -57,6 +58,16 @@ public class ShipmentController {
     @PreAuthorize("hasAnyRole('LOGISTICS_OPERATOR', 'ADMINISTRATOR')")
     public ResponseEntity<ShipmentResponse> updateShipmentStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
         ShipmentResponse response = shipmentService.updateShipmentStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/assign")
+    @PreAuthorize("hasAnyRole('BUSINESS_CLIENT', 'ADMINISTRATOR')")
+    public ResponseEntity<ShipmentResponse> assignOperator(@PathVariable Long id, @RequestBody AssignOperatorRequest request) {
+        if (request == null || request.getOperatorId() == null) {
+            throw new IllegalArgumentException("Operator ID is required");
+        }
+        ShipmentResponse response = shipmentService.assignOperator(id, request.getOperatorId());
         return ResponseEntity.ok(response);
     }
 

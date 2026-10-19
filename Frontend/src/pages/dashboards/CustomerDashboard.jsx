@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-
+import { toast } from "react-toastify";
 import "./CustomerDashboard.css";
 
 
@@ -315,11 +315,22 @@ function CustomerDashboard() {
           <Link
             to="/login"
             className="logout-button"
-            onClick={() => {
+            onClick={(event) => {
+
+              const confirmed = window.confirm(
+                "Are you sure you want to logout?"
+              );
+
+              if (!confirmed) {
+                event.preventDefault();
+                return;
+              }
 
               localStorage.removeItem(
                 "shiptrackUser"
               );
+
+              toast.success("Logged out successfully.");
 
             }}
           >

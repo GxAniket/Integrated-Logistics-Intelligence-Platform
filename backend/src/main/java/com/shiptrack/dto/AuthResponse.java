@@ -1,3 +1,4 @@
+
 package com.shiptrack.dto;
 
 import com.shiptrack.enums.Role;

@@ -10,6 +10,7 @@ import com.shiptrack.entity.User;
 import com.shiptrack.enums.Role;
 import com.shiptrack.enums.ShipmentStatus;
 import com.shiptrack.exception.ResourceNotFoundException;
+import com.shiptrack.repository.RouteRepository;
 import com.shiptrack.repository.ShipmentRepository;
 import com.shiptrack.repository.ShipmentStatusHistoryRepository;
 import com.shiptrack.repository.UserRepository;
@@ -28,13 +29,16 @@ public class ShipmentServiceImpl implements ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final ShipmentStatusHistoryRepository historyRepository;
     private final UserRepository userRepository;
+    private final RouteRepository routeRepository;
 
     public ShipmentServiceImpl(ShipmentRepository shipmentRepository,
                                ShipmentStatusHistoryRepository historyRepository,
-                               UserRepository userRepository) {
+                               UserRepository userRepository,
+                               RouteRepository routeRepository) {
         this.shipmentRepository = shipmentRepository;
         this.historyRepository = historyRepository;
         this.userRepository = userRepository;
+        this.routeRepository = routeRepository;
     }
 
     private User getCurrentUser() {
@@ -200,8 +204,6 @@ public class ShipmentServiceImpl implements ShipmentService {
                 throw new IllegalArgumentException("Assigned customer must have CUSTOMER role");
             }
             shipment.setCustomer(customer);
-        } else {
-            shipment.setCustomer(null);
         }
 
         // Resolve optional Operator
@@ -212,22 +214,72 @@ public class ShipmentServiceImpl implements ShipmentService {
                 throw new IllegalArgumentException("Assigned operator must have LOGISTICS_OPERATOR role");
             }
             shipment.setAssignedOperator(operator);
-        } else {
-            shipment.setAssignedOperator(null);
+            routeRepository.findByShipmentId(id).ifPresent(route -> {
+                route.setAssignedOperator(operator);
+                routeRepository.save(route);
+            });
         }
 
         // Modify standard fields
-        shipment.setReferenceId(request.getReferenceId());
-        shipment.setSenderName(request.getSenderName());
-        shipment.setSenderPhone(request.getSenderPhone());
-        shipment.setSenderAddress(request.getSenderAddress());
-        shipment.setReceiverName(request.getReceiverName());
-        shipment.setReceiverPhone(request.getReceiverPhone());
-        shipment.setReceiverAddress(request.getReceiverAddress());
-        shipment.setPackageDescription(request.getPackageDescription());
-        shipment.setPackageWeightKg(request.getPackageWeightKg());
+        if (request.getReferenceId() != null) shipment.setReferenceId(request.getReferenceId());
+        if (request.getSenderName() != null) shipment.setSenderName(request.getSenderName());
+        if (request.getSenderPhone() != null) shipment.setSenderPhone(request.getSenderPhone());
+        if (request.getSenderAddress() != null) shipment.setSenderAddress(request.getSenderAddress());
+        if (request.getReceiverName() != null) shipment.setReceiverName(request.getReceiverName());
+        if (request.getReceiverPhone() != null) shipment.setReceiverPhone(request.getReceiverPhone());
+        if (request.getReceiverAddress() != null) shipment.setReceiverAddress(request.getReceiverAddress());
+        if (request.getPackageDescription() != null) shipment.setPackageDescription(request.getPackageDescription());
+        if (request.getPackageWeightKg() != null) shipment.setPackageWeightKg(request.getPackageWeightKg());
 
         Shipment savedShipment = shipmentRepository.save(shipment);
+        return mapToResponse(savedShipment);
+    }
+
+    @Override
+    @Transactional
+    public ShipmentResponse assignOperator(Long id, Long operatorId) {
+        User currentUser = getCurrentUser();
+        Shipment shipment = shipmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Shipment not found with ID: " + id));
+
+        // Validate assignment authorization
+        if (currentUser.getRole() != Role.ADMINISTRATOR) {
+            if (currentUser.getRole() != Role.BUSINESS_CLIENT || !shipment.getBusinessClient().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You do not have permission to assign an operator to this shipment.");
+            }
+        }
+
+        if (shipment.getStatus() == ShipmentStatus.DELIVERED || shipment.getStatus() == ShipmentStatus.CANCELLED) {
+            throw new IllegalArgumentException("Cannot assign operator to a shipment with status: " + shipment.getStatus());
+        }
+
+        if (operatorId == null) {
+            throw new IllegalArgumentException("Operator ID is required");
+        }
+
+        User operator = userRepository.findById(operatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Logistics operator not found with ID: " + operatorId));
+        if (operator.getRole() != Role.LOGISTICS_OPERATOR) {
+            throw new IllegalArgumentException("Assigned user must have LOGISTICS_OPERATOR role");
+        }
+
+        shipment.setAssignedOperator(operator);
+        Shipment savedShipment = shipmentRepository.save(shipment);
+
+        // Synchronize Route assignedOperator if Route exists
+        routeRepository.findByShipmentId(id).ifPresent(route -> {
+            route.setAssignedOperator(operator);
+            routeRepository.save(route);
+        });
+
+        // Record in status history
+        ShipmentStatusHistory history = new ShipmentStatusHistory();
+        history.setShipment(savedShipment);
+        history.setStatus(savedShipment.getStatus());
+        history.setRemarks("Assigned to logistics operator: " + operator.getFullName());
+        history.setUpdatedBy(currentUser);
+        historyRepository.save(history);
+
         return mapToResponse(savedShipment);
     }
 

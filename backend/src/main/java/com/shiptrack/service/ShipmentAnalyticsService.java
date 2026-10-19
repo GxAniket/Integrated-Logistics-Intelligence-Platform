@@ -107,7 +107,7 @@ public class ShipmentAnalyticsService {
 
         double onTimeRate = measured == 0 ? 0.0 : onTime * 100.0 / measured;
         double averageMinutes = measured == 0 ? 0.0 : totalMinutes * 1.0 / measured;
-        return new DeliveryPerformanceReportResponse(from, to, rows.size(), measured,
+        return new DeliveryPerformanceReportResponse(from, to, rows.size(), rows.size(), measured,
                 onTime, late, withoutEstimate, round2(onTimeRate), round2(averageMinutes), deliveries);
     }
 

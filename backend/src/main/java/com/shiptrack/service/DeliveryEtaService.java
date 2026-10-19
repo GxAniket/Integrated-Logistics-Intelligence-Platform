@@ -81,15 +81,27 @@ public class DeliveryEtaService {
 
         /*
          * Reuse existing Live Delivery Tracking.
-         * The latest recorded location becomes the ETA origin.
+         * The latest recorded location becomes the ETA origin,
+         * or fallback to route origin / sender address if not yet recorded.
          */
-        ShipmentLocationResponse current =
-                liveTrackingService.getCurrentLocation(shipmentId);
-
-        MapsService.Coordinates origin =
-                new MapsService.Coordinates(
-                        current.getLatitude(),
-                        current.getLongitude());
+        MapsService.Coordinates origin;
+        try {
+            ShipmentLocationResponse current =
+                    liveTrackingService.getCurrentLocation(shipmentId);
+            origin = new MapsService.Coordinates(
+                    current.getLatitude(),
+                    current.getLongitude());
+        } catch (ResourceNotFoundException ex) {
+            if (route != null && route.getOriginLatitude() != null && route.getOriginLongitude() != null) {
+                origin = new MapsService.Coordinates(
+                        route.getOriginLatitude(),
+                        route.getOriginLongitude());
+            } else if (shipment.getSenderAddress() != null && !shipment.getSenderAddress().isBlank()) {
+                origin = mapsService.geocode(shipment.getSenderAddress());
+            } else {
+                throw ex;
+            }
+        }
 
         MapsService.Coordinates destinationCoordinates =
                 new MapsService.Coordinates(

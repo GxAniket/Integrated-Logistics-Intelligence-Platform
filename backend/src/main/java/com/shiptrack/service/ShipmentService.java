@@ -15,5 +15,6 @@ public interface ShipmentService {
     ShipmentResponse updateShipment(Long id, ShipmentRequest request);
     ShipmentResponse updateShipmentStatus(Long id, StatusUpdateRequest request);
     ShipmentResponse cancelShipment(Long id);
+    ShipmentResponse assignOperator(Long id, Long operatorId);
     List<ShipmentStatusHistoryResponse> getShipmentHistory(Long id);
 }

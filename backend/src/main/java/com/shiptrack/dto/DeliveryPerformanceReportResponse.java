@@ -6,6 +6,7 @@ import java.util.List;
 public record DeliveryPerformanceReportResponse(
         LocalDate from,
         LocalDate to,
+        long totalShipments,
         long completedDeliveries,
         long measuredDeliveries,
         long onTimeDeliveries,

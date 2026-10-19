@@ -11,7 +11,7 @@ import {
 
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-
+import { toast } from "react-toastify";
 import "./Login.css";
 import { apiRequest } from "../api";
 
@@ -58,7 +58,7 @@ function Login() {
     const selectedRole = formData.role;
 
     if (!selectedRole) {
-      alert("Please select your role.");
+      toast.error("Please select your role.");
       return;
     }
 
@@ -83,7 +83,7 @@ function Login() {
       });
 
       if (data.role !== backendRole) {
-        alert(`This account belongs to ${data.role}, not ${backendRole}.`);
+        toast.error("Role mismatch. Please select the correct role.");
         return;
       }
 
@@ -106,10 +106,11 @@ function Login() {
         ADMINISTRATOR: "/dashboard/admin",
       };
 
+      toast.success("Login successful!");
       navigate(routes[data.role] || "/");
     } catch (error) {
       console.error("Login error:", error);
-      alert(error.message || "Unable to connect to backend.");
+      toast.error(error.message || "Unable to connect to backend.");
     } finally {
       setIsSubmitting(false);
     }
@@ -306,7 +307,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label>
+              <label htmlFor="login-email">
                 Email Address
               </label>
 
@@ -315,6 +316,7 @@ function Login() {
                 <Mail size={17} />
 
                 <input
+                  id="login-email"
                   type="email"
                   name="email"
                   placeholder="you@example.com"
@@ -332,7 +334,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label>
+              <label htmlFor="login-password">
                 Password
               </label>
 
@@ -346,6 +348,7 @@ function Login() {
                       ? "text"
                       : "password"
                   }
+                  id="login-password"
                   name="password"
                   placeholder="Enter your password"
                   value={formData.password}
@@ -379,7 +382,7 @@ function Login() {
 
             <div className="auth-field">
 
-              <label>
+              <label htmlFor="login-role">
                 Login As
               </label>
 
@@ -388,6 +391,7 @@ function Login() {
                 <ShieldCheck size={17} />
 
                 <select
+                  id="login-role"
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
@@ -433,6 +437,9 @@ function Login() {
 
                 <input
                   type="checkbox"
+                  name="remember"
+                  checked={formData.remember}
+                  onChange={handleChange}
                 />
 
                 <span>
