@@ -921,34 +921,28 @@ function Register() {
         ? "Administrator"
         : "Administrator (restricted)"}
     </option>
-    {canCreatePrivilegedAccount && (
-      <option value="support">
-        Support Agent
-      </option>
-    )}
-    {!canCreatePrivilegedAccount && (
-      <>
-        <option value="customer">
-          Customer
-        </option>
-
-        <option value="business">
-          Business Client
-        </option>
-
-        <option value="operator">
-          Logistics Operator
-        </option>
-
-      </>
-    )}
+    <option value="support" disabled={!canCreatePrivilegedAccount}>
+      {canCreatePrivilegedAccount
+        ? "Support Agent"
+        : "Support Agent (restricted)"}
+    </option>
+    <option value="customer">
+      Customer
+    </option>
+    <option value="business">
+      Business Client
+    </option>
+    <option value="operator">
+      Logistics Operator
+    </option>
 </select>
 </div>
 {!canCreatePrivilegedAccount && (
   <p className="auth-role-note">
-    Administrator accounts cannot be self-registered. The first administrator
-    must be provisioned by your system operator; existing administrators can
-    create additional accounts. Already have an administrator account?{" "}
+    Administrator and Support Agent accounts are restricted and cannot be
+    self-registered. An existing administrator must create them. The first
+    administrator must be provisioned by your system operator. Already have an
+    administrator account?{" "}
     <Link to="/login?role=admin">sign in as an administrator</Link>.
   </p>
 )}
