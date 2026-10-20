@@ -209,9 +209,7 @@ function BusinessDashboard() {
           }
 
           const failedRouteResult = routeResults.find(
-            (result) =>
-              result.status === "rejected" &&
-              result.reason?.status !== 404
+            (result) => result.status === "rejected"
           );
           if (failedRouteResult) {
             throw failedRouteResult.reason;

@@ -65,9 +65,23 @@ function CreateShipment() {
       }
 
       if (operatorsResult.status === "fulfilled") {
-        setOperators(
-          Array.isArray(operatorsResult.value) ? operatorsResult.value : []
-        );
+        if (!Array.isArray(operatorsResult.value)) {
+          console.error(
+            "Unexpected response while loading logistics operators:",
+            operatorsResult.value
+          );
+          setOperatorLoadError(
+            "Unable to load logistics operators: unexpected API response."
+          );
+        } else {
+          setOperators(
+            operatorsResult.value.filter(
+              (operator) =>
+                operator?.id != null &&
+                operator?.role === "LOGISTICS_OPERATOR"
+            )
+          );
+        }
       } else {
         console.error("Load logistics operators error:", operatorsResult.reason);
         setOperatorLoadError(

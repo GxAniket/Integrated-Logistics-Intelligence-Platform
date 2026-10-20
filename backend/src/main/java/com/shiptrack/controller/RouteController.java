@@ -10,6 +10,7 @@ import com.shiptrack.repository.RouteRepository;
 import com.shiptrack.repository.ShipmentRepository;
 import com.shiptrack.repository.UserRepository;
 import com.shiptrack.service.MapsService;
+import com.shiptrack.service.ShipmentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,17 +27,20 @@ public class RouteController {
     private final ShipmentRepository shipmentRepository;
     private final UserRepository userRepository;
     private final MapsService mapsService;
+    private final ShipmentService shipmentService;
 
     public RouteController(
             RouteRepository routeRepository,
             ShipmentRepository shipmentRepository,
             UserRepository userRepository,
-            MapsService mapsService) {
+            MapsService mapsService,
+            ShipmentService shipmentService) {
 
         this.routeRepository = routeRepository;
         this.shipmentRepository = shipmentRepository;
         this.userRepository = userRepository;
         this.mapsService = mapsService;
+        this.shipmentService = shipmentService;
     }
 
     @PostMapping("/shipment/{shipmentId}/calculate")
@@ -112,26 +116,26 @@ return ResponseEntity.ok(
     }
 
     @GetMapping("/{id}")
-   public ResponseEntity<RouteResponse> getRoute(@PathVariable Long id) {
+    public ResponseEntity<RouteResponse> getRoute(@PathVariable Long id) {
 
         Route route = routeRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Route not found with ID: " + id));
 
+        shipmentService.getShipmentById(route.getShipment().getId());
         return ResponseEntity.ok(RouteResponse.from(route));
     }
 
     @GetMapping("/shipment/{shipmentId}")
     public ResponseEntity<RouteResponse> getShipmentRoute(
-        @PathVariable Long shipmentId) {
+            @PathVariable Long shipmentId) {
 
-        Route route = routeRepository.findByShipmentId(shipmentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Route not found for shipment ID: " + shipmentId));
+        shipmentService.getShipmentById(shipmentId);
 
-        return ResponseEntity.ok(RouteResponse.from(route));
+        return routeRepository.findByShipmentId(shipmentId)
+                .map(route -> ResponseEntity.ok(RouteResponse.from(route)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     private User getCurrentUser() {

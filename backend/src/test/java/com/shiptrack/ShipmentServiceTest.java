@@ -8,6 +8,7 @@ import com.shiptrack.repository.ShipmentRepository;
 import com.shiptrack.repository.UserRepository;
 import com.shiptrack.service.ShipmentService;
 import com.shiptrack.service.UserService;
+import org.springframework.security.access.AccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,5 +157,59 @@ class ShipmentServiceTest {
         assertEquals(2, history.size());
         assertEquals(ShipmentStatus.CREATED, history.get(0).getStatus());
         assertEquals(ShipmentStatus.CANCELLED, history.get(1).getStatus());
+    }
+
+    @Test
+    void shipmentListsAndSingleShipmentAccessAreScopedByRole() {
+        authenticateAs(clientUser.getEmail());
+        ShipmentResponse assignedShipment = shipmentService.createShipment(
+                shipmentRequest(customerUser.getId(), operatorUser.getId()));
+        ShipmentResponse unassignedShipment = shipmentService.createShipment(
+                shipmentRequest(null, null));
+        List<Long> createdShipmentIds = List.of(
+                assignedShipment.getId(), unassignedShipment.getId());
+
+        assertEquals(2, shipmentService.getAllShipments().size());
+
+        authenticateAs(customerUser.getEmail());
+        assertEquals(List.of(assignedShipment.getId()), shipmentService.getAllShipments().stream()
+                .map(ShipmentResponse::getId).toList());
+        assertThrows(AccessDeniedException.class,
+                () -> shipmentService.getShipmentById(unassignedShipment.getId()));
+
+        authenticateAs(operatorUser.getEmail());
+        assertEquals(List.of(assignedShipment.getId()), shipmentService.getAllShipments().stream()
+                .map(ShipmentResponse::getId).toList());
+
+        authenticateAs(adminUser.getEmail());
+        assertTrue(shipmentService.getAllShipments().stream()
+                .map(ShipmentResponse::getId)
+                .toList()
+                .containsAll(createdShipmentIds));
+
+        RegisterRequest supportRequest = new RegisterRequest();
+        supportRequest.setFullName("Support User");
+        supportRequest.setEmail("support-" + java.util.UUID.randomUUID() + "@shiptrack.com");
+        supportRequest.setPassword("password123");
+        supportRequest.setRole(Role.SUPPORT_AGENT);
+        userService.registerUser(supportRequest);
+        authenticateAs(supportRequest.getEmail());
+        assertTrue(shipmentService.getAllShipments().stream()
+                .map(ShipmentResponse::getId)
+                .toList()
+                .containsAll(createdShipmentIds));
+    }
+
+    private ShipmentRequest shipmentRequest(Long customerId, Long assignedOperatorId) {
+        ShipmentRequest request = new ShipmentRequest();
+        request.setCustomerId(customerId);
+        request.setAssignedOperatorId(assignedOperatorId);
+        request.setSenderName("Sender");
+        request.setSenderPhone("1111111111");
+        request.setSenderAddress("Origin");
+        request.setReceiverName("Receiver");
+        request.setReceiverPhone("2222222222");
+        request.setReceiverAddress("Destination");
+        return request;
     }
 }

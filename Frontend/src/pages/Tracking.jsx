@@ -417,6 +417,9 @@ function Tracking() {
             result.status === "rejected" &&
             result.reason?.status !== 404
         );
+        if (routeResult.status === "rejected" && routeResult.reason?.status === 404) {
+          failedRequests.push(routeResult);
+        }
 
         if (failedRequests.length > 0) {
           console.error(

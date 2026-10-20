@@ -129,7 +129,7 @@ export default function LogisticsOverview() {
         setAnalyticsError("");
         const query = params.toString();
         const response = await apiRequest(
-          `/api/analytics${query ? `?${query}` : ""}`
+          `/api/analytics/shipments${query ? `?${query}` : ""}`
         );
         if (active) setAnalytics(response);
       } catch (requestError) {
@@ -181,9 +181,7 @@ export default function LogisticsOverview() {
         );
 
         const failedRouteResults = routeResults.filter(
-          (result) =>
-            result.status === "rejected" &&
-            result.reason?.status !== 404
+          (result) => result.status === "rejected"
         );
         if (failedRouteResults.length > 0) {
           throw failedRouteResults[0].reason;
@@ -197,6 +195,7 @@ export default function LogisticsOverview() {
           Object.fromEntries(
             routeResults
               .filter((result) => result.status === "fulfilled")
+              .filter((result) => result.value.route)
               .map((result) => [
                 result.value.shipmentId,
                 result.value.route,

@@ -213,6 +213,8 @@ function getCurrentLocation(locationData) {
 function CustomerDashboard() {
   const [user, setUser] = useState(null);
   const [shipments, setShipments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationError, setNotificationError] = useState("");
   const [selectedShipment, setSelectedShipment] =
     useState(null);
   const [locationData, setLocationData] =
@@ -298,6 +300,32 @@ function CustomerDashboard() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    let active = true;
+
+    apiRequest("/api/notifications")
+      .then((response) => {
+        if (!Array.isArray(response)) {
+          throw new Error("Unexpected notifications API response.");
+        }
+        if (active) {
+          setNotifications(response);
+          setNotificationError("");
+        }
+      })
+      .catch((err) => {
+        console.error("Customer notifications error:", err);
+        if (active) {
+          setNotifications([]);
+          setNotificationError(err?.message || "Unable to load notifications.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   /*
    * Refresh shipment data every 30 seconds.
@@ -460,6 +488,9 @@ function CustomerDashboard() {
 
   const currentLocation =
     getCurrentLocation(locationData);
+  const unreadNotificationCount = notifications.filter(
+    (notification) => !notification?.read
+  ).length;
 
   if (loading) {
     return (
@@ -791,11 +822,11 @@ function CustomerDashboard() {
                 marginTop: "22px",
               }}
             >
-              Data unavailable
+              {notificationError ? "—" : unreadNotificationCount}
             </h2>
 
             <p>
-              Notification data not provided
+              Unread notifications
             </p>
 
           </Link>
@@ -1235,36 +1266,39 @@ function CustomerDashboard() {
                 to="/notifications"
                 className="notification-number"
               >
-                Data unavailable
+                {notificationError ? "—" : unreadNotificationCount}
               </Link>
 
             </div>
 
-            <div className="notification-item">
-
-              <div className="notification-icon orange-notification">
-                i
+            {notificationError ? (
+              <div className="notification-item" role="alert">
+                <div className="notification-icon orange-notification">!</div>
+                <div>
+                  <strong>Notifications unavailable</strong>
+                  <p>{notificationError}</p>
+                </div>
               </div>
-
-              <div>
-
-                <strong>
-                  Notification data unavailable
-                </strong>
-
-                <p>
-                  The current backend does not
-                  provide a notification API for
-                  the customer dashboard.
-                </p>
-
-                <span>
-                  Backend endpoint unavailable
-                </span>
-
+            ) : notifications.length === 0 ? (
+              <div className="notification-item">
+                <div className="notification-icon orange-notification">i</div>
+                <div>
+                  <strong>No notifications yet</strong>
+                  <p>No notifications have been recorded for this account.</p>
+                </div>
               </div>
-
-            </div>
+            ) : (
+              notifications.slice(0, 3).map((notification) => (
+                <div className="notification-item" key={notification.id}>
+                  <div className="notification-icon orange-notification">i</div>
+                  <div>
+                    <strong>{notification.title}</strong>
+                    <p>{notification.message}</p>
+                    <span>{formatDateTime(notification.createdAt)}</span>
+                  </div>
+                </div>
+              ))
+            )}
 
           </section>
 

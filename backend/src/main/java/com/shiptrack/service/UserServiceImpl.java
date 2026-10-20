@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.util.List;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -30,6 +31,32 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto registerUser(RegisterRequest request) {
+        return createUser(request);
+    }
+
+    @Override
+    public UserDto registerPublicUser(RegisterRequest request) {
+        if (request == null
+                || request.getRole() == null
+                || (request.getRole() != Role.CUSTOMER
+                && request.getRole() != Role.BUSINESS_CLIENT
+                && request.getRole() != Role.LOGISTICS_OPERATOR)) {
+            throw new IllegalArgumentException("This role cannot be created through public registration");
+        }
+        return createUser(request);
+    }
+
+    @Override
+    public UserDto registerPrivilegedUser(RegisterRequest request) {
+        if (request == null
+                || request.getRole() == null
+                || (request.getRole() != Role.ADMINISTRATOR && request.getRole() != Role.SUPPORT_AGENT)) {
+            throw new IllegalArgumentException("Only administrator or support accounts can be created here");
+        }
+        return createUser(request);
+    }
+
+    private UserDto createUser(RegisterRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank()) {
             throw new IllegalArgumentException("Email is required");
         }
@@ -63,6 +90,20 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
         return mapToDto(savedUser);
+    }
+
+    @Override
+    public List<UserDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Override
+    public List<UserDto> getUsersByRole(Role role) {
+        return userRepository.findByRoleOrderByFullNameAsc(role).stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     private synchronized String generateUniqueRegisterId() {

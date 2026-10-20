@@ -69,9 +69,7 @@ export default function DelayAnalysis() {
           }))
         );
         const failedRouteResults = routeResults.filter(
-          (result) =>
-            result.status === "rejected" &&
-            result.reason?.status !== 404
+          (result) => result.status === "rejected"
         );
         const routedShipments = routeResults
           .filter((result) => result.status === "fulfilled")
