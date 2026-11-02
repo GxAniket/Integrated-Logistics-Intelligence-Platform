@@ -49,8 +49,8 @@ function getShipments(response) {
 function getStatus(shipment) {
   return String(
     shipment?.status ??
-      shipment?.shipmentStatus ??
-      ""
+    shipment?.shipmentStatus ??
+    ""
   ).toUpperCase();
 }
 
@@ -213,8 +213,6 @@ function getCurrentLocation(locationData) {
 function CustomerDashboard() {
   const [user, setUser] = useState(null);
   const [shipments, setShipments] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationError, setNotificationError] = useState("");
   const [selectedShipment, setSelectedShipment] =
     useState(null);
   const [locationData, setLocationData] =
@@ -274,8 +272,8 @@ function CustomerDashboard() {
 
       setSelectedShipment(
         activeShipment ??
-          latestShipment ??
-          null
+        latestShipment ??
+        null
       );
     } catch (err) {
       console.error(
@@ -285,7 +283,7 @@ function CustomerDashboard() {
 
       setError(
         err?.message ||
-          "Unable to load dashboard data."
+        "Unable to load dashboard data."
       );
 
       setUser(null);
@@ -300,32 +298,6 @@ function CustomerDashboard() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
-
-  useEffect(() => {
-    let active = true;
-
-    apiRequest("/api/notifications")
-      .then((response) => {
-        if (!Array.isArray(response)) {
-          throw new Error("Unexpected notifications API response.");
-        }
-        if (active) {
-          setNotifications(response);
-          setNotificationError("");
-        }
-      })
-      .catch((err) => {
-        console.error("Customer notifications error:", err);
-        if (active) {
-          setNotifications([]);
-          setNotificationError(err?.message || "Unable to load notifications.");
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   /*
    * Refresh shipment data every 30 seconds.
@@ -488,9 +460,6 @@ function CustomerDashboard() {
 
   const currentLocation =
     getCurrentLocation(locationData);
-  const unreadNotificationCount = notifications.filter(
-    (notification) => !notification?.read
-  ).length;
 
   if (loading) {
     return (
@@ -822,11 +791,11 @@ function CustomerDashboard() {
                 marginTop: "22px",
               }}
             >
-              {notificationError ? "—" : unreadNotificationCount}
+              Data unavailable
             </h2>
 
             <p>
-              Unread notifications
+              Notification data not provided
             </p>
 
           </Link>
@@ -934,7 +903,7 @@ function CustomerDashboard() {
                         <strong>
                           {formatDate(
                             shipment.createdAt ??
-                              shipment.createdDate
+                            shipment.createdDate
                           )}
                         </strong>
 
@@ -1127,7 +1096,7 @@ function CustomerDashboard() {
                       {locationLoading
                         ? "Loading..."
                         : currentLocation ||
-                          "Data unavailable"}
+                        "Data unavailable"}
                     </strong>
 
                   </div>
@@ -1266,39 +1235,36 @@ function CustomerDashboard() {
                 to="/notifications"
                 className="notification-number"
               >
-                {notificationError ? "—" : unreadNotificationCount}
+                Data unavailable
               </Link>
 
             </div>
 
-            {notificationError ? (
-              <div className="notification-item" role="alert">
-                <div className="notification-icon orange-notification">!</div>
-                <div>
-                  <strong>Notifications unavailable</strong>
-                  <p>{notificationError}</p>
-                </div>
+            <div className="notification-item">
+
+              <div className="notification-icon orange-notification">
+                i
               </div>
-            ) : notifications.length === 0 ? (
-              <div className="notification-item">
-                <div className="notification-icon orange-notification">i</div>
-                <div>
-                  <strong>No notifications yet</strong>
-                  <p>No notifications have been recorded for this account.</p>
-                </div>
+
+              <div>
+
+                <strong>
+                  Notification data unavailable
+                </strong>
+
+                <p>
+                  The current backend does not
+                  provide a notification API for
+                  the customer dashboard.
+                </p>
+
+                <span>
+                  Backend endpoint unavailable
+                </span>
+
               </div>
-            ) : (
-              notifications.slice(0, 3).map((notification) => (
-                <div className="notification-item" key={notification.id}>
-                  <div className="notification-icon orange-notification">i</div>
-                  <div>
-                    <strong>{notification.title}</strong>
-                    <p>{notification.message}</p>
-                    <span>{formatDateTime(notification.createdAt)}</span>
-                  </div>
-                </div>
-              ))
-            )}
+
+            </div>
 
           </section>
 

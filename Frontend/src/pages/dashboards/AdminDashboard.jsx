@@ -98,7 +98,9 @@ function AdminDashboard() {
           }))
         );
         const failedRequests = results.filter(
-          (result) => result.status === "rejected"
+          (result) =>
+            result.status === "rejected" &&
+            result.reason?.status !== 404
         );
         if (failedRequests.length > 0) throw failedRequests[0].reason;
 
@@ -106,7 +108,6 @@ function AdminDashboard() {
         results.forEach((result) => {
           if (result.status !== "fulfilled") return;
           const { shipment, route } = result.value;
-          if (!route) return;
           const name = `${route.origin || shipment.senderAddress} → ${
             route.destination || shipment.receiverAddress
           }`;
@@ -190,34 +191,21 @@ function AdminDashboard() {
       try {
         setAnalyticsLoading(true);
         setAnalyticsError("");
-        const [analyticsResult, reportResult] = await Promise.allSettled([
-          apiRequest(`/api/analytics/shipments${suffix}`),
-          apiRequest(`/api/analytics/delivery-performance${suffix}`),
+        const [analyticsResponse, reportResponse] = await Promise.all([
+          apiRequest(`/api/analytics${suffix}`),
+          apiRequest(`/api/reports/performance${suffix}`),
         ]);
-        if (!active) return;
-
-        const errors = [];
-        if (analyticsResult.status === "fulfilled") {
-          setAnalytics(analyticsResult.value);
-        } else {
-          console.error("Failed to load administrator shipment analytics:", analyticsResult.reason);
+        if (active) {
+          setAnalytics(analyticsResponse);
+          setPerformanceReport(reportResponse);
+        }
+      } catch (err) {
+        if (active) {
+          console.error("Failed to load administrator analytics:", err);
           setAnalytics(null);
-          errors.push(
-            `Shipment analytics: ${analyticsResult.reason.message || "Unable to load shipment analytics."}`
-          );
-        }
-
-        if (reportResult.status === "fulfilled") {
-          setPerformanceReport(reportResult.value);
-        } else {
-          console.error("Failed to load administrator delivery performance:", reportResult.reason);
           setPerformanceReport(null);
-          errors.push(
-            `Delivery performance: ${reportResult.reason.message || "Unable to load delivery performance."}`
-          );
+          setAnalyticsError(err.message || "Unable to load shipment analytics.");
         }
-
-        setAnalyticsError(errors.join(" "));
       } finally {
         if (active) setAnalyticsLoading(false);
       }
@@ -229,10 +217,13 @@ function AdminDashboard() {
     };
   }, [fromDate, toDate]);
 
-  const onTimeRate =
-    performanceReport?.measuredDeliveries > 0
-      ? `${performanceReport.onTimeRatePercent.toFixed(1)}%`
-      : "—";
+  const onTimeRate = performanceReport?.completedDeliveries
+    ? `${(
+        (performanceReport.onTimeDeliveries /
+          performanceReport.completedDeliveries) *
+        100
+      ).toFixed(1)}%`
+    : "—";
 
   const filteredUsers = users.filter((user) =>
     `${user.fullName} ${user.email} ${user.role}`
@@ -396,7 +387,8 @@ function AdminDashboard() {
               <strong>System Health</strong>
 
               <span>
-                Telemetry unavailable
+                <i />
+                {analyticsLoading ? "Checking" : analyticsError ? "Unavailable" : "API connected"}
               </span>
             </div>
 
@@ -464,14 +456,10 @@ function AdminDashboard() {
                   : "API Connected"}
             </div>
 
-            <Link
-              to="/notifications"
-              className="admin-header-icon"
-              aria-label="Open notifications"
-            >
+            <button className="admin-header-icon">
               <Bell size={18} />
               <i />
-            </Link>
+            </button>
 
             <div className="admin-header-user">
 
@@ -1338,12 +1326,12 @@ function AdminDashboard() {
 
               <span>
                 API
-                <b>Not monitored</b>
+                <b>{analyticsLoading ? "Checking" : analyticsError ? "Unavailable" : "Connected"}</b>
               </span>
 
               <span>
                 Database
-                <b>Not monitored</b>
+                <b>{analyticsLoading ? "Checking" : analyticsError ? "Unavailable" : "Connected"}</b>
               </span>
 
               <span>

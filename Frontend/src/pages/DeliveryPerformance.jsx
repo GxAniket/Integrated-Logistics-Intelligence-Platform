@@ -40,7 +40,7 @@ function DeliveryPerformance() {
         setReportError("");
         const query = params.toString();
         const report = await apiRequest(
-          `/api/analytics/delivery-performance${query ? `?${query}` : ""}`
+          `/api/reports/performance${query ? `?${query}` : ""}`
         );
         if (active) setPerformanceReport(report);
       } catch (err) {
@@ -96,7 +96,9 @@ function DeliveryPerformance() {
         })
       );
       const failedRouteResults = routeResults.filter(
-        (result) => result.status === "rejected"
+        (result) =>
+          result.status === "rejected" &&
+          result.reason?.status !== 404
       );
       if (failedRouteResults.length > 0) {
         throw failedRouteResults[0].reason;

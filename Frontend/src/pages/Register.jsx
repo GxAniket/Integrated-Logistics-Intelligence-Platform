@@ -916,34 +916,36 @@ function Register() {
       Select your role
     </option>
 
-    {canCreatePrivilegedAccount && (
-      <option value="administrator">
-        Administrator
-      </option>
-    )}
-    {canCreatePrivilegedAccount && (
-      <option value="support">
-        Support Agent
-      </option>
-    )}
-    {!canCreatePrivilegedAccount && (
-      <>
-        <option value="customer">
-          Customer
-        </option>
-
-        <option value="business">
-          Business Client
-        </option>
-
-        <option value="operator">
-          Logistics Operator
-        </option>
-
-      </>
-    )}
+    <option value="administrator" disabled={!canCreatePrivilegedAccount}>
+      {canCreatePrivilegedAccount
+        ? "Administrator"
+        : "Administrator (restricted)"}
+    </option>
+    <option value="support" disabled={!canCreatePrivilegedAccount}>
+      {canCreatePrivilegedAccount
+        ? "Support Agent"
+        : "Support Agent (restricted)"}
+    </option>
+    <option value="customer">
+      Customer
+    </option>
+    <option value="business">
+      Business Client
+    </option>
+    <option value="operator">
+      Logistics Operator
+    </option>
 </select>
 </div>
+{!canCreatePrivilegedAccount && (
+  <p className="auth-role-note">
+    Administrator and Support Agent accounts are restricted and cannot be
+    self-registered. An existing administrator must create them. The first
+    administrator must be provisioned by your system operator. Already have an
+    administrator account?{" "}
+    <Link to="/login?role=admin">sign in as an administrator</Link>.
+  </p>
+)}
 </div>
 
             {/* =================================================
@@ -1010,6 +1012,12 @@ function Register() {
               Sign in
             </Link>
           </p>
+          {!canCreatePrivilegedAccount && (
+            <p className="auth-switch auth-admin-switch">
+              Administrator?
+              <Link to="/login?role=admin">Sign in here</Link>
+            </p>
+          )}
         </section>
       </main>
     </div>

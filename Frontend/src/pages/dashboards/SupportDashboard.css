@@ -355,7 +355,7 @@
   gap: 9px;
 }
 
-.support-header-profile > div {
+.support-header-profile > div:first-child {
   width: 35px;
   height: 35px;
   display: flex;

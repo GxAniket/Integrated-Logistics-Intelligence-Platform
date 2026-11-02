@@ -108,7 +108,8 @@ function BusinessTracking() {
         let route = routeResult.status === "fulfilled"
           ? routeResult.value : null;
         let routeFailed = false;
-        if (!route && routeResult.status === "fulfilled") {
+        if (!route && routeResult.status === "rejected" &&
+            routeResult.reason?.status === 404) {
           try {
             route = await apiRequest(
               `/api/routes/shipment/${shipmentId}/calculate`,
@@ -118,9 +119,6 @@ function BusinessTracking() {
             routeFailed = true;
             console.error("Failed to calculate shipment route:", routeError);
           }
-        } else if (routeResult.status === "rejected") {
-          routeFailed = true;
-          console.error("Failed to load shipment route:", routeResult.reason);
         }
 
         let forecasts = forecastResult.status === "fulfilled" &&

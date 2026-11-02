@@ -652,7 +652,10 @@ function DriverTracking() {
               ? routeResult.value
               : null;
 
-          if (routeResult.status === "rejected") {
+          if (
+            routeResult.status === "rejected" &&
+            routeResult.reason?.status !== 404
+          ) {
             trackingErrors.push("A saved route could not be loaded.");
             console.error(
               `Failed to load route for shipment ${shipment.id}:`,
