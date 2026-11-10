@@ -1,4 +1,11 @@
-const API_BASE_URL = "http://localhost:8080";
+const configuredApiUrl =
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+const API_BASE_URL = (
+  configuredApiUrl ||
+  (import.meta.env.PROD
+    ? "https://shiptrack-backend-r684.onrender.com"
+    : "http://localhost:8080")
+).replace(/\/+$/, "");
 
 export async function apiRequest(path, options = {}) {
   const token = localStorage.getItem("shiptrackToken");
@@ -12,10 +19,20 @@ export async function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (cause) {
+    const error = new Error(
+      `Could not reach the ShipTrack API at ${API_BASE_URL}. Check the API URL, deployment status, and CORS settings.`,
+      { cause },
+    );
+    error.cause = cause;
+    throw error;
+  }
 
   const text = await response.text();
   let data = null;
@@ -28,9 +45,12 @@ export async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     const message =
+      (typeof data === "string" && data.trim()) ||
       data?.message ||
+      data?.detail ||
+      data?.error_description ||
       data?.error ||
-      data ||
+      data?.title ||
       `Request failed with status ${response.status}`;
 
     throw new Error(message);
