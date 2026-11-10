@@ -865,46 +865,108 @@
 @media (max-width: 800px) {
 
   .customer-sidebar {
-    width: 70px;
-    padding: 20px 10px;
+    width: min(280px, 82vw);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px 18px;
+    transform: translateX(-105%);
+    transition: transform 0.24s ease;
+    z-index: 20;
   }
 
-  .customer-brand > div:last-child,
-  .sidebar-title,
-  .sidebar-link:not(.active)::after,
-  .sidebar-link {
-    font-size: 0;
+  .customer-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .customer-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    border: 0;
+    padding: 0;
+    background: rgba(4, 6, 13, 0.68);
   }
 
   .customer-brand {
-    justify-content: center;
+    justify-content: flex-start;
+  }
+
+  .sidebar-title {
+    font-size: 9px;
   }
 
   .sidebar-link {
-    justify-content: center;
+    justify-content: flex-start;
+    font-size: 13px;
   }
 
   .sidebar-link span {
+    flex: 0 0 20px;
     font-size: 18px;
   }
 
-  .notification-count {
-    display: none;
-  }
-
   .customer-main {
-    width: calc(100% - 70px);
-    margin-left: 70px;
-    padding: 22px;
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    padding: 24px;
   }
 
   .customer-topbar {
     align-items: flex-start;
+    gap: 12px;
+  }
+
+  .customer-topbar > div:first-child {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    column-gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-nav-toggle {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: #f6f7fb;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .welcome-small {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .customer-topbar h1 {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .customer-topbar .welcome-text {
+    grid-column: 2;
+    grid-row: 3;
+    max-width: none;
   }
 
   .profile-info,
   .profile-arrow {
     display: none;
+  }
+
+  .topbar-actions {
+    flex: 0 0 auto;
+    gap: 0;
   }
 
   .shipment-row {
@@ -928,15 +990,18 @@
   }
 
   .customer-main {
-    padding: 17px;
+    padding: 20px 14px 28px;
   }
 
   .customer-topbar h1 {
-    font-size: 22px;
+    font-size: clamp(18px, 5vw, 22px);
+    line-height: 1.25;
+    letter-spacing: -0.5px;
   }
 
   .welcome-text {
-    max-width: 230px;
+    max-width: none;
+    line-height: 1.5;
   }
 
   .top-icon {
@@ -965,6 +1030,13 @@
     width: 100%;
   }
 
+}
+
+@media (min-width: 801px) {
+  .mobile-nav-toggle,
+  .customer-sidebar-overlay {
+    display: none;
+  }
 }
 /* ================= LINK RESET ================= */
 

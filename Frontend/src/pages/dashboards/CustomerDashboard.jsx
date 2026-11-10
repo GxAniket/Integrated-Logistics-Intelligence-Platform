@@ -2,9 +2,11 @@ import {
   ArrowRight,
   Bell,
   CheckCircle2,
+  Menu,
   MapPin,
   Package,
   Truck,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -212,6 +214,7 @@ function getCurrentLocation(locationData) {
 
 function CustomerDashboard() {
   const [user, setUser] = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [shipments, setShipments] = useState([]);
   const [selectedShipment, setSelectedShipment] =
     useState(null);
@@ -483,7 +486,19 @@ function CustomerDashboard() {
 
       {/* ================= SIDEBAR ================= */}
 
-      <aside className="customer-sidebar">
+      {mobileNavOpen && (
+        <button
+          type="button"
+          className="customer-sidebar-overlay"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      <aside
+        id="customer-navigation"
+        className={`customer-sidebar ${mobileNavOpen ? "open" : ""}`}
+      >
 
         <div className="customer-brand">
 
@@ -509,7 +524,7 @@ function CustomerDashboard() {
             MAIN MENU
           </div>
 
-          <nav>
+          <nav onClick={() => setMobileNavOpen(false)}>
 
             <Link
               to="/dashboard/customer"
@@ -613,6 +628,17 @@ function CustomerDashboard() {
         <header className="customer-topbar">
 
           <div>
+
+            <button
+              type="button"
+              className="mobile-nav-toggle"
+              aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={mobileNavOpen}
+              aria-controls="customer-navigation"
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? <X size={19} /> : <Menu size={19} />}
+            </button>
 
             <p className="welcome-small">
               CUSTOMER PORTAL
